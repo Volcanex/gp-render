@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useControls, folder } from 'leva'
 import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
+import { CLUT_PRESETS } from '../palette/clutPresets.js'
 
 export function useSensorParams() {
   const { sensor, scene, textures } = useControls({
@@ -49,6 +50,13 @@ export function useSensorParams() {
     }),
     Look: folder({
       colorMode: { value: preset.colorMode, options: ['rgb332', 'rgb', 'ramp'] },
+      clutPreset: {
+        value: preset.clutPreset,
+        options: Object.fromEntries(
+          Object.entries(CLUT_PRESETS).map(([id, p]) => [p.label, id])
+        ),
+        hint: 'palette for rgb332 mode; ramps below only apply in ramp mode',
+      },
       palette: { value: preset.palette, options: Object.keys(PALETTES) },
       pixelSize: { value: preset.pixelSize, min: 1, max: 8, step: 1 },
       outline: { value: preset.outline },

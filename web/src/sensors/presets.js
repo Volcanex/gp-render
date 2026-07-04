@@ -28,6 +28,11 @@
 //   ditherScale: float   — pattern magnification (1 = native, 2 = chunky)
 //   pinning: string      — 'off' | 'rotation'  (Pope screen-offset)
 //   palette: string      — ramp id from PALETTES below (ramp mode only)
+//   clutPreset: string   — rgb332-mode palette: a preset id from
+//                          palette/clutPresets.js ('identity', hardware
+//                          palettes like 'c64'/'cga'/'zx', or ramp-derived
+//                          tonal CLUTs). Loaded into the editable CLUT;
+//                          manual palette-editor tweaks apply on top.
 //   pixelSize: int       — pixelation pass; 1 = off
 //   outline: bool        — depth+normal sobel outline overlay
 //   outlineStrength: float
@@ -73,7 +78,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8,
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
-    pinning: 'rotation', palette: 'paper', pixelSize: 1,
+    pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
     outline: true, outlineStrength: 1,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -83,7 +88,7 @@ export const SENSOR_PRESETS = {
     ev: -3, iso: 200, fNumber: 1.8, dof: true, focusDistance: 8,
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb', levels: 8, ditherMode: 'bluenoise', ditherScale: 1,
-    pinning: 'rotation', palette: 'paper', pixelSize: 1,
+    pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
     outline: false, outlineStrength: 0,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -93,7 +98,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8,
     dynamicRange: 4, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
-    pinning: 'rotation', palette: 'paper', pixelSize: 1,
+    pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
     outline: true, outlineStrength: 1,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -103,7 +108,7 @@ export const SENSOR_PRESETS = {
     ev: -0.5, iso: 1600, fNumber: 8, dof: false, focusDistance: 8,
     dynamicRange: 0, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'rgb', levels: 3, ditherMode: 'white', ditherScale: 2,
-    pinning: 'off', palette: 'mono', pixelSize: 3,
+    pinning: 'off', palette: 'mono', pixelSize: 3, clutPreset: 'identity',
     outline: false, outlineStrength: 0,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -113,7 +118,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 200, fNumber: 4, dof: false, focusDistance: 8,
     dynamicRange: 5, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'rgb', levels: 4, ditherMode: 'bayer8', ditherScale: 1,
-    pinning: 'rotation', palette: 'phosphor', pixelSize: 2,
+    pinning: 'rotation', palette: 'phosphor', pixelSize: 2, clutPreset: 'identity',
     outline: true, outlineStrength: 1,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -123,7 +128,7 @@ export const SENSOR_PRESETS = {
     ev: 1, iso: 800, fNumber: 2.8, dof: false, focusDistance: 8,
     dynamicRange: 7, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'ramp', levels: 3, ditherMode: 'bluenoise', ditherScale: 1,
-    pinning: 'rotation', palette: 'uvviolet', pixelSize: 2,
+    pinning: 'rotation', palette: 'uvviolet', pixelSize: 2, clutPreset: 'identity',
     outline: true, outlineStrength: 0.6,
     seeVisible: false, seeUv: true, seeIr: false,
     uvColor: '#b070ff', irColor: '#ff5020',
@@ -133,7 +138,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 3200, fNumber: 2, dof: false, focusDistance: 8,
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 8, ditherMode: 'bluenoise', ditherScale: 2,
-    pinning: 'off', palette: 'irheat', pixelSize: 4,
+    pinning: 'off', palette: 'irheat', pixelSize: 4, clutPreset: 'identity',
     outline: false, outlineStrength: 0,
     seeVisible: false, seeUv: false, seeIr: true,
     uvColor: '#9040ff', irColor: '#ff9a40',
@@ -143,7 +148,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 800, fNumber: 4, dof: false, focusDistance: 8,
     dynamicRange: 5, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
-    pinning: 'rotation', palette: 'paper', pixelSize: 1,
+    pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
     outline: true, outlineStrength: 0.8,
     seeVisible: true, seeUv: true, seeIr: true,
     uvColor: '#9040ff', irColor: '#ff5020',
@@ -153,7 +158,7 @@ export const SENSOR_PRESETS = {
     ev: 0, iso: 100, fNumber: 11, dof: false, focusDistance: 8,
     dynamicRange: 3, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'ramp', levels: 4, ditherMode: 'bayer8', ditherScale: 2,
-    pinning: 'off', palette: 'gameboy', pixelSize: 4,
+    pinning: 'off', palette: 'gameboy', pixelSize: 4, clutPreset: 'identity',
     outline: false, outlineStrength: 0,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',

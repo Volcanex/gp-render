@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { slotToHex, hexToSlot, identity332 } from './clut.js'
+import { CLUT_PRESETS, applyClutPreset } from './clutPresets.js'
 
 const STORAGE_KEY = 'titan.cluts'
 
@@ -16,15 +17,15 @@ function isValidPalette(arr) {
   return Array.isArray(arr) && arr.length === 256 && arr.every(h => typeof h === 'string' && /^#[0-9a-fA-F]{6}$/.test(h))
 }
 
-export default function PaletteEditor({ clutData, clutTexture }) {
+export default function PaletteEditor({ clutData, clutTexture, version }) {
   const [open, setOpen] = useState(false)
-  const [version, setVersion] = useState(0)
+  const [renderTick, setRenderTick] = useState(0)
   const [selected, setSelected] = useState(0)
   const [name, setName] = useState('')
   const [saved, setSaved] = useState(loadSaved)
   const fileInputRef = useRef(null)
 
-  const bump = () => setVersion(v => v + 1)
+  const bump = () => setRenderTick(v => v + 1)
   const touch = () => {
     clutTexture.needsUpdate = true
     bump()
@@ -61,6 +62,11 @@ export default function PaletteEditor({ clutData, clutTexture }) {
 
   const handleReset = () => {
     clutData.set(identity332())
+    touch()
+  }
+
+  const handlePresetChange = (id) => {
+    applyClutPreset(id, clutData)
     touch()
   }
 
@@ -123,6 +129,7 @@ export default function PaletteEditor({ clutData, clutTexture }) {
 
       <div style={styles.body}>
         <div
+          key={version + ':' + renderTick}
           style={styles.grid}
           onClick={(e) => {
             const idx = e.target.getAttribute('data-idx')
@@ -147,6 +154,23 @@ export default function PaletteEditor({ clutData, clutTexture }) {
             value={slotToHex(clutData, selected)}
             onChange={(e) => handleSwatchChange(selected, e.target.value)}
           />
+
+          <div style={styles.row}>
+            <select
+              className="titan-palette-input"
+              style={{ flex: 1 }}
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) handlePresetChange(e.target.value)
+                e.target.value = ''
+              }}
+            >
+              <option value="" disabled>load preset...</option>
+              {Object.entries(CLUT_PRESETS).map(([id, preset]) => (
+                <option key={id} value={id}>{preset.label}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={styles.row}>
             <input
