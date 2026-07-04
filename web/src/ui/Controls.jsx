@@ -5,6 +5,16 @@ import { CLUT_PRESETS } from '../palette/clutPresets.js'
 
 const USER_PRESETS_KEY = 'titan.userPresets'
 
+let focalSetterRef = null
+
+export function setFocalLength(mm) {
+  if (!focalSetterRef) {
+    console.warn('setFocalLength: called before Controls mounted')
+    return
+  }
+  focalSetterRef(mm)
+}
+
 function loadUserPresets() {
   try {
     const raw = window.localStorage.getItem(USER_PRESETS_KEY)
@@ -194,6 +204,8 @@ export function useSensorParams() {
       }),
     }),
   }))
+
+  focalSetterRef = (mm) => set({ focalLength: Math.round(Math.min(135, Math.max(18, mm))) })
 
   const valuesRef = useRef(values)
   useEffect(() => { valuesRef.current = values }, [values])

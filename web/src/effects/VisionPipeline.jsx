@@ -149,6 +149,17 @@ export default function VisionPipeline({ params, clutTexture }) {
     sensor.setParams(eff)
     sensor.setAutoWb(params.wbAuto ? autoWb.current : null)
     vision.setParams(eff)
+    // viewfinder readout state (CameraHud polls this); shutter is display
+    // fiction derived from effective EV until motion blur is simulated
+    window.__titanCamera = {
+      iso: Math.round(eff.iso),
+      fNumber: params.fNumber,
+      focalLength: Math.round(params.focalLength),
+      ev: eff.ev,
+      aeStops: ae.stops,
+      focus: dof ? af.current : null,
+      exposureMode: params.exposureMode,
+    }
     if (dof) {
       // sample crosshair depth — throttled: the readback forces a GPU sync,
       // so doing it every frame costs real frame time

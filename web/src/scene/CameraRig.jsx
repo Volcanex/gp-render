@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
+import { setFocalLength } from '../ui/Controls.jsx'
 
 const FLY_SPEED = 6
 const FLY_SHIFT_MULT = 4
@@ -19,9 +20,11 @@ const FLY_KEY_TO_ACTION = {
   KeyQ: 'down', KeyE: 'up', ShiftLeft: 'boost', ShiftRight: 'boost',
 }
 
+const WALK_ZOOM_RATE = 0.9
+
 const WALK_KEY_TO_ACTION = {
   KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right',
-  ShiftLeft: 'boost', ShiftRight: 'boost', Space: 'jump',
+  KeyQ: 'zoomOut', KeyE: 'zoomIn', ShiftLeft: 'boost', ShiftRight: 'boost', Space: 'jump',
 }
 
 function useFocalLength(focalLength) {
@@ -84,7 +87,7 @@ function FlyControls() {
   return <PointerLockControls makeDefault selector="canvas" />
 }
 
-function WalkControls() {
+function WalkControls({ focalLength }) {
   const { camera } = useThree()
   const keys = useKeyState(WALK_KEY_TO_ACTION)
   useExitPointerLockOnUnmount()
@@ -94,9 +97,15 @@ function WalkControls() {
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const move = useRef(new THREE.Vector3())
+  // float accumulator: setFocalLength rounds to integer mm, so deriving each
+  // frame's zoom from the rounded prop stalls slow zooms at low mm values.
+  // Re-seed only when the prop diverges (slider/preset change from outside).
+  const zoomMm = useRef(focalLength)
 
   useFrame((_, delta) => {
     const k = keys.current
+
+    if (Math.abs(focalLength - zoomMm.current) > 1) zoomMm.current = focalLength
 
     // horizontal-only look direction: flatten to the XZ plane before
     // deriving forward/right so looking up/down doesn't change speed
@@ -129,6 +138,14 @@ function WalkControls() {
       vy.current = 0
       grounded.current = true
     }
+
+    // Q/E twist the lens barrel: exponential rate so 20mm and 100mm zoom
+    // at the same perceptual speed. The prop flows back through leva and
+    // is applied by useFocalLength above.
+    if (k.zoomIn || k.zoomOut) {
+      zoomMm.current *= Math.exp((k.zoomIn ? 1 : -1) * WALK_ZOOM_RATE * delta)
+      setFocalLength(zoomMm.current)
+    }
   })
 
   return <PointerLockControls makeDefault selector="canvas" />
@@ -138,6 +155,6 @@ export default function CameraRig({ mode, focalLength }) {
   useFocalLength(focalLength)
 
   if (mode === 'fly') return <FlyControls />
-  if (mode === 'walk') return <WalkControls />
+  if (mode === 'walk') return <WalkControls focalLength={focalLength} />
   return <OrbitControls makeDefault enableDamping />
 }
