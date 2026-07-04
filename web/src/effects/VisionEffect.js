@@ -3,7 +3,10 @@
 import { Uniform, Vector2 } from 'three'
 import { Effect } from 'postprocessing'
 
-const DITHER_MODES = { none: 0, bluenoise: 1, bayer8: 2, white: 3 }
+const DITHER_MODES = {
+  none: 0, bluenoise: 1, bayer8: 2, white: 3,
+  bayer4: 4, ign: 5, halftone: 6, lines: 7,
+}
 const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2 }
 
 const fragmentShader = /* glsl */ `
@@ -17,6 +20,7 @@ uniform float uPixelSize;
 uniform float uIso;
 uniform vec2 uDitherOffset;
 uniform int uColorMode;
+uniform float uIsoAgitation;
 
 const mat4 bayer4 = mat4(
    0.0,  8.0,  2.0, 10.0,
@@ -35,9 +39,7 @@ float bayer8x8(vec2 p) {
 }
 
 float hash21(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
@@ -61,11 +63,25 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     t = (b + 0.5) / 64.0;
   } else if (uDitherMode == 3) {
     t = hash21(floor(fragCoord / uDitherScale));
+  } else if (uDitherMode == 4) {
+    ivec2 c4 = ivec2(mod(fragCoord / uDitherScale + uDitherOffset, 4.0));
+    float b = bayer4[c4.y][c4.x];
+    t = (b + 0.5) / 16.0;
+  } else if (uDitherMode == 5) {
+    vec2 p = fragCoord / uDitherScale + uDitherOffset;
+    t = fract(52.9829189 * fract(0.06711056 * p.x + 0.00583715 * p.y));
+  } else if (uDitherMode == 6) {
+    vec2 p = fragCoord / uDitherScale + uDitherOffset;
+    vec2 c = fract(p / 6.0) - 0.5;
+    t = clamp(length(c) * 2.2, 0.0, 0.999);
+  } else if (uDitherMode == 7) {
+    vec2 p = fragCoord / uDitherScale + uDitherOffset;
+    t = fract((p.x + p.y) / 4.0);
   } else {
     t = 0.5;
   }
 
-  float isoAmount = clamp((uIso - 100.0) / 12700.0, 0.0, 1.0) * 0.15;
+  float isoAmount = clamp((uIso - 100.0) / 12700.0, 0.0, 1.0) * 0.15 * uIsoAgitation;
   float jitter = hash21(fragCoord + uDitherOffset * 1.37) - 0.5;
   t = clamp(t + jitter * isoAmount, 0.0, 1.0);
 
@@ -99,6 +115,7 @@ export class VisionEffect extends Effect {
         ['uIso', new Uniform(400)],
         ['uDitherOffset', new Uniform(new Vector2())],
         ['uColorMode', new Uniform(COLOR_MODES.rgb332)],
+        ['uIsoAgitation', new Uniform(1)],
       ]),
     })
   }
@@ -110,6 +127,7 @@ export class VisionEffect extends Effect {
     this.uniforms.get('uPixelSize').value = Math.max(1, params.pixelSize)
     this.uniforms.get('uIso').value = params.iso
     this.uniforms.get('uColorMode').value = COLOR_MODES[params.colorMode] ?? COLOR_MODES.rgb332
+    this.uniforms.get('uIsoAgitation').value = params.isoAgitation ? 1 : 0
   }
 
   setRamp(texture) {

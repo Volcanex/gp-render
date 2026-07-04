@@ -24,7 +24,10 @@ export default function App() {
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
             ? <RaymarchScene />
-            : <TestScene band={params.band} />}
+            : <TestScene bands={{
+                visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
+                uvColor: params.uvColor, irColor: params.irColor,
+              }} />}
         </Suspense>
         <VisionPipeline params={params} clutTexture={clutTexture} />
       </Canvas>

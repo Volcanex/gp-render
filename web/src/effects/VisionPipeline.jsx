@@ -33,8 +33,9 @@ export default function VisionPipeline({ params, clutTexture }) {
   const vision = useMemo(() => new VisionEffect({ noiseTexture: noise }), [noise])
   const outline = useMemo(() => new EdgeOutlineEffect(), [])
   // DOF runs on the clean render, before the sensor/dither stylisation
+  // focusDistance/focusRange are in world units in this postprocessing version
   const dof = useMemo(
-    () => (params.dof ? new DepthOfFieldEffect(camera, { focusDistance: params.focusDistance, focalLength: 0.05, bokehScale: 1 }) : null),
+    () => (params.dof ? new DepthOfFieldEffect(camera, { focusDistance: params.focusDistance, focusRange: 2, bokehScale: 1 }) : null),
     [params.dof, camera],
   )
 
@@ -47,7 +48,9 @@ export default function VisionPipeline({ params, clutTexture }) {
     outline.setParams(params)
     if (dof) {
       dof.bokehScale = 10 / params.fNumber
-      dof.cocMaterial.uniforms.focusDistance.value = params.focusDistance
+      dof.cocMaterial.focusDistance = params.focusDistance
+      // wide aperture = shallow in-focus band, stopped down = deep focus
+      dof.cocMaterial.focusRange = Math.max(0.5, params.focusDistance * params.fNumber * 0.08)
     }
   }, [params, ramp, sensor, vision, outline, dof, clutTexture])
 

@@ -13,7 +13,7 @@ export function useSensorParams() {
     scene: {
       value: 'geometry',
       options: ['geometry', 'raymarch'],
-      hint: 'band (uv/ir) only applies to the geometry scene',
+      hint: 'spectrum (uv/ir) only applies to the geometry scene',
     },
   })
 
@@ -24,16 +24,24 @@ export function useSensorParams() {
       ev: { value: preset.ev, min: -4, max: 4, step: 0.1 },
       iso: { value: preset.iso, min: 100, max: 12800, step: 100 },
       fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
+      dynamicRange: {
+        value: preset.dynamicRange, min: 0, max: 12, step: 0.5,
+        hint: 'stops; 0 = linear, higher lifts shadows',
+      },
     }),
     Optics: folder({
       dof: { value: preset.dof },
-      focusDistance: { value: preset.focusDistance, min: 0, max: 1, step: 0.01 },
+      focusDistance: { value: preset.focusDistance, min: 1, max: 40, step: 0.5 },
     }),
     Dither: folder({
-      ditherMode: { value: preset.ditherMode, options: ['bluenoise', 'bayer8', 'white', 'none'] },
+      ditherMode: {
+        value: preset.ditherMode,
+        options: ['bluenoise', 'bayer8', 'bayer4', 'ign', 'halftone', 'lines', 'white', 'none'],
+      },
       levels: { value: preset.levels, min: 2, max: 16, step: 1 },
       ditherScale: { value: preset.ditherScale, min: 1, max: 8, step: 1 },
       pinning: { value: preset.pinning, options: ['off', 'rotation'] },
+      isoAgitation: { value: preset.isoAgitation },
     }),
     Look: folder({
       colorMode: { value: preset.colorMode, options: ['rgb332', 'rgb', 'ramp'] },
@@ -41,8 +49,15 @@ export function useSensorParams() {
       pixelSize: { value: preset.pixelSize, min: 1, max: 8, step: 1 },
       outline: { value: preset.outline },
       outlineStrength: { value: preset.outlineStrength, min: 0, max: 2, step: 0.1 },
+      grain: { value: preset.grain },
       grainAnimated: { value: preset.grainAnimated },
-      band: { value: preset.band, options: ['visible', 'uv', 'ir'] },
+    }),
+    Spectrum: folder({
+      seeVisible: { value: preset.seeVisible, hint: 'spectrum applies to the geometry scene only' },
+      seeUv: { value: preset.seeUv },
+      seeIr: { value: preset.seeIr },
+      uvColor: { value: preset.uvColor },
+      irColor: { value: preset.irColor },
     }),
   }))
 
