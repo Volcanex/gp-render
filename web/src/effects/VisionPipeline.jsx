@@ -14,6 +14,7 @@ import { DepthOfFieldEffect } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
+import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { getRampTexture } from './ramps.js'
 
 const euler = new THREE.Euler()
@@ -39,6 +40,12 @@ export default function VisionPipeline({ params, clutTexture }) {
     [params.dof, camera],
   )
 
+  // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader —
+  // it replaces VisionEffect in the chain when selected.
+  const errorDiffusion = params.ditherMode === 'floyd' || params.ditherMode === 'atkinson'
+  const edPass = useMemo(() => new ErrorDiffusionPass(), [])
+  useEffect(() => () => edPass.dispose(), [edPass])
+
   const ramp = getRampTexture(params.palette)
   useEffect(() => {
     sensor.setParams(params)
@@ -46,6 +53,12 @@ export default function VisionPipeline({ params, clutTexture }) {
     vision.setRamp(ramp)
     vision.setClut(clutTexture)
     outline.setParams(params)
+    if (errorDiffusion) {
+      edPass.setParams(params)
+      const d = ramp.image.data
+      edPass.setRamp(Array.from({ length: 256 }, (_, i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]))
+      edPass.setClut(clutTexture.image.data)
+    }
     if (dof) {
       dof.bokehScale = 10 / params.fNumber
       dof.cocMaterial.focusDistance = params.focusDistance
@@ -72,7 +85,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     <EffectComposer depthBuffer multisampling={0}>
       {dof ? <primitive object={dof} /> : null}
       <primitive object={sensor} />
-      <primitive object={vision} />
+      {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}
       <primitive object={outline} />
     </EffectComposer>
   )

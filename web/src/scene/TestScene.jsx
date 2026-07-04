@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
+import { makeTexture } from './textures.js'
 
 function useGradientTexture() {
   return useMemo(() => {
@@ -61,7 +62,31 @@ const CHECKER_COLORS = [
 
 const NEAR_BLACK = '#020202'
 
-export default function TestScene({ bands }) {
+function useSurfaceTextures() {
+  return useMemo(() => {
+    const floor = makeTexture('grid', { seed: 1, size: 256, colorA: '#9a9a9a', colorB: '#707070' })
+    floor.repeat.set(4, 4)
+
+    const wallBrick = makeTexture('brick', { seed: 2, size: 256, colorA: '#8a5642', colorB: '#5c3a2c' })
+    wallBrick.repeat.set(4, 2)
+
+    const wallPlates = makeTexture('plates', { seed: 3, size: 256, colorA: '#b0b0b0', colorB: '#888888' })
+    wallPlates.repeat.set(4, 2)
+
+    const boxRust = makeTexture('rust', { seed: 4, size: 256, colorA: '#8a4a22', colorB: '#4a2410' })
+    boxRust.repeat.set(2, 2)
+
+    const coneWood = makeTexture('wood', { seed: 5, size: 256, colorA: '#8a5a2a', colorB: '#5a3a18' })
+    coneWood.repeat.set(1, 2)
+
+    const knotMarble = makeTexture('marble', { seed: 6, size: 256, colorA: '#e8e8e0', colorB: '#b0b0a8' })
+    knotMarble.repeat.set(2, 1)
+
+    return { floor, wallBrick, wallPlates, boxRust, coneWood, knotMarble }
+  }, [])
+}
+
+export default function TestScene({ bands, textures = true }) {
   const {
     visible = true, uv = false, ir = false,
     uvColor = '#aa33ff', irColor = '#ff5500',
@@ -71,6 +96,7 @@ export default function TestScene({ bands }) {
   const pendulumRef = useRef()
   const gradientTex = useGradientTexture()
   const hueTex = useHueTexture()
+  const maps = useSurfaceTextures()
 
   useFrame((state) => {
     const t = state.clock.getElapsedTime()
@@ -131,16 +157,29 @@ export default function TestScene({ bands }) {
       {/* room: floor + walls — cold, never glow in IR */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[14, 14]} />
-        <meshStandardMaterial color={vis('#b8b8b8')} roughness={0.9} />
+        <meshStandardMaterial
+          color={textures ? vis('#ffffff') : vis('#b8b8b8')}
+          map={textures ? maps.floor : null}
+          roughness={0.9}
+        />
       </mesh>
       <mesh position={[0, 3.5, -5]} receiveShadow>
         <planeGeometry args={[14, 7]} />
-        <meshStandardMaterial color={vis('#c4c4c4')} roughness={0.95} />
+        <meshStandardMaterial
+          color={textures ? vis('#ffffff') : vis('#c4c4c4')}
+          map={textures ? maps.wallBrick : null}
+          roughness={0.95}
+        />
       </mesh>
       <mesh position={[-6, 3.5, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[14, 7]} />
-        <meshStandardMaterial color={vis('#cccccc')} roughness={0.95} />
+        <meshStandardMaterial
+          color={textures ? vis('#ffffff') : vis('#cccccc')}
+          map={textures ? maps.wallPlates : null}
+          roughness={0.95}
+        />
       </mesh>
+      {/* dither reference wall — always plain, never textured */}
       <mesh position={[6, 3.5, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[14, 7]} />
         <meshStandardMaterial color={vis('#b0b0b0')} roughness={0.95} />
@@ -163,7 +202,13 @@ export default function TestScene({ bands }) {
       {/* torus knot centrepiece, slowly rotating — mild IR warmth */}
       <mesh ref={knotRef} position={[0, 1.4, 0]} castShadow receiveShadow>
         <torusKnotGeometry args={[0.7, 0.22, 128, 32]} />
-        <meshStandardMaterial color={vis('#008a7a')} roughness={0.5} metalness={0.1} {...heat(1.2)} />
+        <meshStandardMaterial
+          color={vis('#008a7a')}
+          map={textures ? maps.knotMarble : null}
+          roughness={0.5}
+          metalness={0.1}
+          {...heat(1.2)}
+        />
       </mesh>
 
       {/* roughness sweep spheres — 5 hues, roughness 0→1, cold in IR */}
@@ -177,11 +222,19 @@ export default function TestScene({ bands }) {
       {/* hard silhouettes: tall box + cone, cold in IR */}
       <mesh position={[3.5, 1.2, 1]} castShadow>
         <boxGeometry args={[0.8, 2.4, 0.8]} />
-        <meshStandardMaterial color={vis('#d9622e')} roughness={0.7} />
+        <meshStandardMaterial
+          color={textures ? vis('#ffffff') : vis('#d9622e')}
+          map={textures ? maps.boxRust : null}
+          roughness={0.7}
+        />
       </mesh>
       <mesh position={[3.5, 0.6, -1.2]} castShadow>
         <coneGeometry args={[0.6, 1.2, 32]} />
-        <meshStandardMaterial color={vis('#7a2ec9')} roughness={0.7} />
+        <meshStandardMaterial
+          color={textures ? vis('#ffffff') : vis('#7a2ec9')}
+          map={textures ? maps.coneWood : null}
+          roughness={0.7}
+        />
       </mesh>
 
       {/* gradient strip: DataTexture luminance ramp — dither acid test */}

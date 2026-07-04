@@ -3,7 +3,7 @@ import { useControls, folder } from 'leva'
 import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
 
 export function useSensorParams() {
-  const { sensor, scene } = useControls({
+  const { sensor, scene, textures } = useControls({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
@@ -14,6 +14,10 @@ export function useSensorParams() {
       value: 'geometry',
       options: ['geometry', 'raymarch'],
       hint: 'spectrum (uv/ir) only applies to the geometry scene',
+    },
+    textures: {
+      value: true,
+      hint: 'procedural texturing in the geometry scene',
     },
   })
 
@@ -36,7 +40,7 @@ export function useSensorParams() {
     Dither: folder({
       ditherMode: {
         value: preset.ditherMode,
-        options: ['bluenoise', 'bayer8', 'bayer4', 'ign', 'halftone', 'lines', 'white', 'none'],
+        options: ['bluenoise', 'floyd', 'atkinson', 'bayer8', 'bayer4', 'ign', 'halftone', 'lines', 'white', 'none'],
       },
       levels: { value: preset.levels, min: 2, max: 16, step: 1 },
       ditherScale: { value: preset.ditherScale, min: 1, max: 8, step: 1 },
@@ -66,5 +70,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, set])
 
-  return { sensor, scene, ...values }
+  return { sensor, scene, textures, ...values }
 }

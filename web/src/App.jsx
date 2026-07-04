@@ -24,7 +24,7 @@ export default function App() {
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
             ? <RaymarchScene />
-            : <TestScene bands={{
+            : <TestScene textures={params.textures} bands={{
                 visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
                 uvColor: params.uvColor, irColor: params.irColor,
               }} />}
