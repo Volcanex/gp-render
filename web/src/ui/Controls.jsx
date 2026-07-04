@@ -42,7 +42,7 @@ export function useSensorParams() {
     ),
   }
 
-  const [{ sensor, scene, textures, moveMode, perf }, setGlobals] = useControls(() => ({
+  const [{ sensor, scene, textures, moveMode, perf, ao }, setGlobals] = useControls(() => ({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
@@ -66,6 +66,10 @@ export function useSensorParams() {
     perf: {
       value: true,
       hint: 'FPS + per-pass timings',
+    },
+    ao: {
+      value: true,
+      hint: 'ambient occlusion (N8AO)',
     },
   }), [userPresets])
 
@@ -130,8 +134,8 @@ export function useSensorParams() {
       },
       afMode: {
         value: preset.afMode,
-        options: ['manual', 'instant', 'lazy', 'hunting'],
-        hint: 'autofocus character; manual uses the focusDistance slider',
+        options: ['manual', 'instant', 'lazy', 'hunting', 'zone', 'cinerack', 'macro'],
+        hint: 'autofocus character; manual uses the focusDistance slider. zone = stable area AF; cinerack = smooth constant-speed focus pull; macro = close-up biased, hunts on far targets',
       },
     }),
     Lens: folder({
@@ -180,6 +184,8 @@ export function useSensorParams() {
       seeIr: { value: preset.seeIr },
       uvColor: { value: preset.uvColor },
       irColor: { value: preset.irColor },
+      uvGain: { value: preset.uvGain ?? 1, min: 0, max: 2, step: 0.05, hint: 'band sensitivity' },
+      irGain: { value: preset.irGain ?? 1, min: 0, max: 2, step: 0.05, hint: 'band sensitivity' },
     }),
     Presets: folder({
       'save preset…': button(() => {
@@ -225,5 +231,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, timeOfDay, renderScale, upscaler, sharpen, ...values }
+  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, ...values }
 }

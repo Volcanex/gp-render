@@ -33,6 +33,7 @@ uniform vec3 uWbGains;
 uniform float uDynRange;
 uniform float uToneS;
 uniform float uGrainAmount;
+uniform float uBlackLift;
 uniform bool uAnimated;
 
 float hash(vec2 p, float seed) {
@@ -61,8 +62,12 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float n = hash(gl_FragCoord.xy, seed) * 2.0 - 1.0;
 
   float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  float weight = smoothstep(0.02, 0.25, luma) * (1.0 - smoothstep(0.6, 0.95, luma));
+  float midtoneShape = smoothstep(0.02, 0.25, luma) * (1.0 - smoothstep(0.6, 0.95, luma));
+  float shadowFloor = (1.0 - smoothstep(0.0, 0.35, luma)) * 0.9;
+  float weight = max(midtoneShape, shadowFloor);
   c += n * weight * uGrainAmount;
+
+  c += uBlackLift;
 
   outputColor = vec4(max(c, 0.0), inputColor.a);
 }
@@ -79,6 +84,7 @@ export class SensorEffect extends Effect {
         ['uDynRange', new Uniform(0)],
         ['uToneS', new Uniform(0)],
         ['uGrainAmount', new Uniform(0)],
+        ['uBlackLift', new Uniform(0)],
         ['uAnimated', new Uniform(true)],
       ]),
     })
@@ -96,6 +102,7 @@ export class SensorEffect extends Effect {
     this.uniforms.get('uDynRange').value = params.dynamicRange || 0
     this.uniforms.get('uToneS').value = params.toneS || 0
     this.uniforms.get('uGrainAmount').value = params.grain ? 0.35 * (params.iso - 100) / 12700 : 0
+    this.uniforms.get('uBlackLift').value = Math.min(0.05, 0.004 * (params.iso / 100))
     this.uniforms.get('uAnimated').value = !!params.grainAnimated
   }
 

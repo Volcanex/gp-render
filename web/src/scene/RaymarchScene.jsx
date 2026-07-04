@@ -33,6 +33,10 @@ uniform float uSeeUv;
 uniform float uSeeIr;
 uniform vec3 uUvColor;
 uniform vec3 uIrColor;
+uniform float uUvGain;
+uniform float uIrGain;
+uniform float uTorch;
+uniform vec3 uCamForward;
 
 in vec3 vRayDir;
 layout(location = 0) out vec4 fragColor;
@@ -270,7 +274,7 @@ vec3 spectrumEmission(float matId, vec3 p) {
     if (matId < 0.5) heat = smoothstep(0.6, 0.9, fbm2(p.xz * 0.15)) * 0.15;
     else if (matId < 1.5) heat = 1.0;
     else if (matId < 3.5 && matId > 2.5) heat = 0.35;
-    e += uIrColor * heat;
+    e += uIrColor * heat * uIrGain;
   }
 
   if (uSeeUv > 0.5) {
@@ -282,13 +286,13 @@ vec3 spectrumEmission(float matId, vec3 p) {
       if (rune > 0.6) {
         float band = fract(p.y * 1.5);
         float glow = smoothstep(0.42, 0.5, band) * (1.0 - smoothstep(0.5, 0.58, band));
-        e += uUvColor * glow * 1.5;
+        e += uUvColor * glow * 1.5 * uUvGain;
       }
     }
     if (matId < 0.5) {
       // large ring inscribed on the terrain, off-centre — pure distance test
       float ringDist = abs(length(p.xz - vec2(4.0, -3.5)) - 3.0);
-      e += uUvColor * smoothstep(0.12, 0.0, ringDist) * 1.2;
+      e += uUvColor * smoothstep(0.12, 0.0, ringDist) * 1.2 * uUvGain;
     }
   }
 
@@ -355,6 +359,19 @@ void main() {
   vec3 lit = uSeeVis > 0.5
     ? albedo * (uAmbientColor * ao + uSunColor * diff * shadow)
     : vec3(0.0);
+
+  // camera-mounted torch: a spotlight along the view direction, visible-band
+  // only (it's a physical light, not a sensor emulation like IR/UV)
+  if (uTorch > 0.5 && uSeeVis > 0.5) {
+    vec3 toCam = ro - p;
+    float distSq = dot(toCam, toCam);
+    vec3 toCamDir = toCam / sqrt(distSq);
+    float cone = pow(max(dot(-toCamDir, uCamForward), 0.0), 24.0);
+    float atten = 1.0 / (1.0 + 0.02 * distSq);
+    float ndotl = max(dot(n, toCamDir), 0.0);
+    lit += albedo * vec3(1.0, 0.92, 0.8) * 2.5 * cone * atten * ndotl;
+  }
+
   vec3 color = lit + spectrumEmission(matId, p);
 
   // fog targets the flat horizon tone (not the direction-dependent sky/cloud
@@ -409,8 +426,13 @@ function computeSunState(timeOfDay) {
   return { dir, sunColor, ambientColor, skyHorizon, skyZenith, day }
 }
 
-export default function RaymarchScene({ timeOfDay = 14, bands = {} }) {
-  const { visible = true, uv = false, ir = false, uvColor = '#9040ff', irColor = '#ff5020' } = bands
+const camForward = new THREE.Vector3()
+
+export default function RaymarchScene({ timeOfDay = 14, bands = {}, torch = false }) {
+  const {
+    visible = true, uv = false, ir = false,
+    uvColor = '#9040ff', irColor = '#ff5020', uvGain = 1, irGain = 1,
+  } = bands
   const meshRef = useRef()
 
   const geometry = useMemo(() => {
@@ -444,6 +466,10 @@ export default function RaymarchScene({ timeOfDay = 14, bands = {} }) {
         uSeeIr: { value: 0 },
         uUvColor: { value: new THREE.Color(uvColor) },
         uIrColor: { value: new THREE.Color(irColor) },
+        uUvGain: { value: 1 },
+        uIrGain: { value: 1 },
+        uTorch: { value: 0 },
+        uCamForward: { value: new THREE.Vector3(0, 0, -1) },
       },
     })
   }, [])
@@ -454,7 +480,13 @@ export default function RaymarchScene({ timeOfDay = 14, bands = {} }) {
     material.uniforms.uSeeIr.value = ir ? 1 : 0
     material.uniforms.uUvColor.value.set(uvColor)
     material.uniforms.uIrColor.value.set(irColor)
-  }, [visible, uv, ir, uvColor, irColor, material])
+    material.uniforms.uUvGain.value = uvGain
+    material.uniforms.uIrGain.value = irGain
+  }, [visible, uv, ir, uvColor, irColor, uvGain, irGain, material])
+
+  useEffect(() => {
+    material.uniforms.uTorch.value = torch ? 1 : 0
+  }, [torch, material])
 
   useEffect(() => {
     const s = computeSunState(timeOfDay)
@@ -481,6 +513,8 @@ export default function RaymarchScene({ timeOfDay = 14, bands = {} }) {
       material.uniforms.uProjInv.value.copy(camera.projectionMatrixInverse)
       material.uniforms.uProjA.value = camera.projectionMatrix.elements[10]
       material.uniforms.uProjB.value = camera.projectionMatrix.elements[14]
+      camera.getWorldDirection(camForward)
+      material.uniforms.uCamForward.value.copy(camForward)
     }
   }, [material])
 

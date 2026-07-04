@@ -34,6 +34,17 @@ export class AutofocusController {
     this.seek = null
     this.missTimer = 0
     this.missTrueTarget = null
+    // 'zone' area-AF state
+    this.zoneBuffer = []
+    this.zoneTarget = this.current
+    // 'cinerack' rack state
+    this.rackTarget = this.current
+    this.rackTotalDist = 0
+    // 'macro' state
+    this.macroPhase = null
+    this.macroFarTarget = null
+    this.macroDiveTarget = null
+    this.macroPhaseTimer = 0
   }
 
   update(dt, measuredDist) {
@@ -59,10 +70,93 @@ export class AutofocusController {
       }
     } else if (this.mode === 'hunting') {
       this._updateHunting(dt, m)
+    } else if (this.mode === 'zone') {
+      this._updateZone(dt, measuredDist)
+    } else if (this.mode === 'cinerack') {
+      this._updateCinerack(dt, m)
+    } else if (this.mode === 'macro') {
+      this._updateMacro(dt, m)
     }
 
-    this.current = clamp(this.current, 0.5, 80)
+    const lo = this.mode === 'macro' ? 0.3 : 0.5
+    this.current = clamp(this.current, lo, 80)
     return this.current
+  }
+
+  // 'zone': area-AF. Median-filters the last few readings so a brief
+  // flicker over a foreground object doesn't retarget focus, then only
+  // moves once the filtered value has drifted outside a deadband.
+  _updateZone(dt, measuredDist) {
+    if (measuredDist != null) {
+      this.zoneBuffer.push(measuredDist)
+      if (this.zoneBuffer.length > 5) this.zoneBuffer.shift()
+    }
+    if (this.zoneBuffer.length) {
+      const median = this._median(this.zoneBuffer)
+      const deadband = 0.1 * Math.max(this.zoneTarget, 1e-6)
+      if (Math.abs(median - this.zoneTarget) > deadband) this.zoneTarget = median
+    }
+    const tau = 0.2
+    const alpha = 1 - Math.exp(-dt / tau)
+    this.current += (this.zoneTarget - this.current) * alpha
+  }
+
+  _median(values) {
+    const sorted = [...values].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+  }
+
+  // 'cinerack': the focus-puller look — constant angular velocity toward the
+  // mark, easing out only in the final approach so it never overshoots.
+  _updateCinerack(dt, m) {
+    if (m != null && Math.abs(m - this.rackTarget) > 0.01) {
+      this.rackTarget = m
+      this.rackTotalDist = Math.abs(this.rackTarget - this.current)
+    }
+    const remaining = this.rackTarget - this.current
+    const remainingAbs = Math.abs(remaining)
+    if (remainingAbs < 1e-6) return
+    const speedCap = 8
+    const easeZone = 0.15 * Math.max(this.rackTotalDist, 1e-6)
+    const speed = remainingAbs < easeZone ? speedCap * (remainingAbs / easeZone) : speedCap
+    const step = Math.sign(remaining) * Math.min(speed * dt, remainingAbs)
+    this.current += step
+  }
+
+  // 'macro': eager close-focus lens. Snaps quickly onto near subjects, but
+  // reads a far subject as "not macro" — dives toward the near limit first,
+  // then gives up and crawls out to the real (far) distance.
+  _updateMacro(dt, m) {
+    if (m == null) return
+
+    if (m < 6) {
+      this.macroPhase = null
+      const tau = 0.1
+      const alpha = 1 - Math.exp(-dt / tau)
+      this.current += (m - this.current) * alpha
+      return
+    }
+
+    const targetMoved = this.macroFarTarget == null || Math.abs(m - this.macroFarTarget) > 0.1 * Math.max(this.macroFarTarget, 1e-6)
+    if (this.macroPhase == null || targetMoved) {
+      this.macroPhase = 'dive'
+      this.macroFarTarget = m
+      this.macroDiveTarget = 1 + Math.random() * 1
+      this.macroPhaseTimer = 0
+    }
+
+    this.macroPhaseTimer += dt
+    if (this.macroPhase === 'dive') {
+      const tau = 0.08
+      const alpha = 1 - Math.exp(-dt / tau)
+      this.current += (this.macroDiveTarget - this.current) * alpha
+      if (this.macroPhaseTimer >= 0.4) this.macroPhase = 'crawl'
+    } else {
+      const tau = 1.2
+      const alpha = 1 - Math.exp(-dt / tau)
+      this.current += (this.macroFarTarget - this.current) * alpha
+    }
   }
 
   _updateHunting(dt, m) {

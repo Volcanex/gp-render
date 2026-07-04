@@ -1,5 +1,5 @@
 import { useMemo, useRef, useLayoutEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { makeTexture } from './textures.js'
 
@@ -238,10 +238,11 @@ const GROUND_DAY = new THREE.Color('#4a463c')
 const GROUND_DUSK = new THREE.Color('#3a2c24')
 const GROUND_NIGHT = new THREE.Color('#05060d')
 
-export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
+export default function TestScene({ bands, textures = true, timeOfDay = 14, torch = false }) {
   const {
     visible = true, uv = false, ir = false,
     uvColor = '#aa33ff', irColor = '#ff5500',
+    uvGain = 1, irGain = 1,
   } = bands || {}
 
   // sun elevation -1 (below horizon) .. 1 (zenith), azimuth sweeps east→west over the day
@@ -263,12 +264,21 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
   const groundColor = sunElevation >= 0 ? GROUND_DUSK.clone().lerp(GROUND_DAY, dayFactor) : GROUND_DUSK.clone().lerp(GROUND_NIGHT, nightDepth)
   const nightBoost = 1 + (1 - dayFactor) * 0.6
 
+  const { camera } = useThree()
   const knotRef = useRef()
   const pendulumRef = useRef()
   const creatureRefs = useRef([])
+  const torchRef = useRef()
+  const torchTargetRef = useRef()
+  const torchDir = useMemo(() => new THREE.Vector3(), [])
   const gradientTex = useGradientTexture()
   const hueTex = useHueTexture()
   const maps = useSurfaceTextures()
+
+  // wire the torch's target once — its position is updated every frame instead
+  useLayoutEffect(() => {
+    if (torchRef.current && torchTargetRef.current) torchRef.current.target = torchTargetRef.current
+  }, [])
 
   const crates = useMemo(() => makeCrateField(101, 40, 35), [])
   const crateGroups = useMemo(
@@ -315,6 +325,11 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
       const [cx, cy, cz] = CREATURE_CENTERS[i]
       el.position.set(cx + Math.sin(t * 0.25 + i * 2) * 3, cy, cz + Math.cos(t * 0.2 + i * 2) * 3)
     })
+    if (torch && torchRef.current && torchTargetRef.current) {
+      torchRef.current.position.copy(camera.position)
+      camera.getWorldDirection(torchDir)
+      torchTargetRef.current.position.copy(camera.position).addScaledVector(torchDir, 10)
+    }
   })
 
   const roughnessSteps = [0, 0.25, 0.5, 0.75, 1]
@@ -324,28 +339,28 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
   // near-black when it doesn't (the only light left is whatever's emissive)
   const vis = (hex) => (visible ? hex : NEAR_BLACK)
 
-  // heat glow shared by every IR-emitting object: brighter = hotter
+  // heat glow shared by every IR-emitting object: brighter = hotter, scaled by irGain
   const heat = (intensity) => ({
     emissive: ir ? irColor : '#000000',
-    emissiveIntensity: ir ? intensity : 0,
+    emissiveIntensity: ir ? intensity * irGain : 0,
   })
 
   // hidden marking: invisible (blended into its background) unless uv is on,
-  // in which case it glows in uvColor regardless of the other bands
+  // in which case it glows in uvColor (scaled by uvGain) regardless of the other bands
   const marking = (bgHex) => ({
     color: uv ? uvColor : bgHex,
     emissive: uv ? uvColor : '#000000',
-    emissiveIntensity: uv ? 3 : 0,
+    emissiveIntensity: uv ? 3 * uvGain : 0,
     transparent: true,
     opacity: uv ? 1 : 0,
   })
 
-  // buried: invisible unless ir is on, then glows faintly in irColor — for
-  // things that are only "seen" as heat, not as physical geometry
+  // buried: invisible unless ir is on, then glows faintly in irColor (scaled by
+  // irGain) — for things that are only "seen" as heat, not as physical geometry
   const buried = (bgHex, intensity) => ({
     color: ir ? irColor : bgHex,
     emissive: ir ? irColor : '#000000',
-    emissiveIntensity: ir ? intensity : 0,
+    emissiveIntensity: ir ? intensity * irGain : 0,
     transparent: true,
     opacity: ir ? 1 : 0,
   })
@@ -361,10 +376,29 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
         intensity={visible ? dayFactor * 2.4 : 0}
         color={sunColor}
         castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-45}
+        shadow-camera-right={45}
+        shadow-camera-top={45}
+        shadow-camera-bottom={-45}
+        shadow-camera-near={1}
+        shadow-camera-far={120}
+        shadow-bias={-0.0005}
       />
       <pointLight position={[-2, 1.8, -1.5]} intensity={visible ? 0.9 * nightBoost : 0} distance={8} color="#ff9040" />
       {/* far-out fill so the edges of the litter field aren't pitch black */}
       <pointLight position={[22, 6, -18]} intensity={visible ? 0.5 * nightBoost : 0} distance={40} color="#88aacc" />
+      {/* handheld torch — parented to the camera via position copy each frame, no shadow (perf) */}
+      <spotLight
+        ref={torchRef}
+        angle={0.5}
+        penumbra={0.4}
+        distance={30}
+        intensity={visible && torch ? 3 : 0}
+        color="#fff0d0"
+        castShadow={false}
+      />
+      <object3D ref={torchTargetRef} />
 
       {/* bulb mesh: lit normally in visible, hottest IR source */}
       <mesh position={[-2, 1.8, -1.5]}>
@@ -440,7 +474,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
       ))}
 
       {/* hard silhouettes: tall box + cone, cold in IR */}
-      <mesh position={[3.5, 1.2, 1]} castShadow>
+      <mesh position={[3.5, 1.2, 1]} castShadow receiveShadow>
         <boxGeometry args={[0.8, 2.4, 0.8]} />
         <meshStandardMaterial
           color={textures ? vis('#ffffff') : vis('#d9622e')}
@@ -448,7 +482,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14 }) {
           roughness={0.7}
         />
       </mesh>
-      <mesh position={[3.5, 0.6, -1.2]} castShadow>
+      <mesh position={[3.5, 0.6, -1.2]} castShadow receiveShadow>
         <coneGeometry args={[0.6, 1.2, 32]} />
         <meshStandardMaterial
           color={textures ? vis('#ffffff') : vis('#7a2ec9')}

@@ -11,6 +11,7 @@ import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, VignetteEffect } from 'postprocessing'
+import { N8AOPostPass } from 'n8ao'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
@@ -25,7 +26,19 @@ const euler = new THREE.Euler()
 const pickVec = new THREE.Vector3()
 
 export default function VisionPipeline({ params, clutTexture }) {
-  const { camera, size } = useThree()
+  const { camera, size, scene } = useThree()
+
+  // ambient occlusion: geometry scene only (the raymarcher computes its own)
+  const aoOn = params.ao && params.scene !== 'raymarch'
+  const aoPass = useMemo(() => {
+    if (!aoOn) return null
+    const p = new N8AOPostPass(scene, camera, size.width, size.height)
+    p.configuration.aoRadius = 2.5
+    p.configuration.intensity = 3
+    p.configuration.halfRes = true
+    return p
+  }, [aoOn, scene, camera])
+  useEffect(() => () => { if (aoPass) aoPass.dispose?.() }, [aoPass])
 
   const noise = useLoader(THREE.TextureLoader, '/textures/bluenoise128.png')
   useMemo(() => {
@@ -208,6 +221,7 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   return (
     <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
+      {aoPass ? <primitive object={aoPass} /> : null}
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       {bloom ? <primitive object={bloom} /> : null}

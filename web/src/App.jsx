@@ -23,6 +23,15 @@ function skyColor(t) {
 
 export default function App() {
   const params = useSensorParams()
+  // headlamp, toggled with L (kept out of leva so it feels like equipment)
+  const [torch, setTorch] = useState(false)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'KeyL' && !e.repeat && e.target.tagName !== 'INPUT') setTorch(t => !t)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   // One CLUT for the session: PaletteEditor mutates the array in place and
   // flags the texture; no React state churn on per-swatch edits.
   const clutData = useMemo(() => identity332(), [])
@@ -39,6 +48,7 @@ export default function App() {
     <>
       <Canvas
         className={params.upscaler === 'smooth' ? 'upscale-smooth' : undefined}
+        shadows
         gl={{ powerPreference: 'high-performance', antialias: false, stencil: false, depth: false }}
         camera={{ position: [4, 2.5, 5], fov: 60 }}
         dpr={params.renderScale}
@@ -47,13 +57,15 @@ export default function App() {
         <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
-            ? <RaymarchScene timeOfDay={params.timeOfDay} bands={{
+            ? <RaymarchScene timeOfDay={params.timeOfDay} torch={torch} bands={{
                 visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
                 uvColor: params.uvColor, irColor: params.irColor,
+                uvGain: params.uvGain, irGain: params.irGain,
               }} />
-            : <TestScene textures={params.textures} timeOfDay={params.timeOfDay} bands={{
+            : <TestScene textures={params.textures} timeOfDay={params.timeOfDay} torch={torch} bands={{
                 visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
                 uvColor: params.uvColor, irColor: params.irColor,
+                uvGain: params.uvGain, irGain: params.irGain,
               }} />}
         </Suspense>
         <VisionPipeline params={params} clutTexture={clutTexture} />
