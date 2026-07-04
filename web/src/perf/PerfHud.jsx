@@ -23,6 +23,8 @@ export default function PerfHud() {
     const id = setInterval(() => {
       setSnapshot({
         fps: perfRegistry.fps,
+        low1: perfRegistry.low1,
+        spikes: perfRegistry.spikes,
         passes: perfRegistry.passes.map((p) => ({ ...p })),
       })
     }, 250)
@@ -54,10 +56,16 @@ export default function PerfHud() {
         userSelect: 'none',
       }}
     >
-      <div style={{ fontSize: 16, fontWeight: 600, color: fpsColor(snapshot.fps) }}>
-        FPS {Math.round(snapshot.fps)}
+      <div style={{ fontSize: 16, fontWeight: 600 }}>
+        <span style={{ color: fpsColor(snapshot.fps) }}>FPS {Math.round(snapshot.fps)}</span>
+        <span style={{ opacity: 0.6 }}> · </span>
+        <span style={{ color: fpsColor(snapshot.low1) }}>1% low {Math.round(snapshot.low1)}</span>
+        <span style={{ opacity: 0.6 }}> · </span>
+        <span>{snapshot.spikes} spikes</span>
       </div>
-      <div style={{ opacity: 0.5, marginBottom: 4 }}>cpu ms/frame (incl. gpu stalls)</div>
+      <div style={{ opacity: 0.5, marginBottom: 4 }}>
+        cpu ms/frame (incl. gpu stalls) — 1% low = felt smoothness, spikes = frames &gt;33ms
+      </div>
       {rows.map((p) => (
         <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
           <span>{truncate(p.name)}</span>

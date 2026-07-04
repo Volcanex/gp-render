@@ -10,12 +10,17 @@
 export const perfRegistry = {
   frames: 0,
   fps: 0,
+  low1: 0, // 1% low fps — avg of the worst 1% of frames in the window, the number that tracks felt stutter
+  spikes: 0, // frames over 33ms (sub-30fps) in the window
   passes: [], // [{ name, ms }]
 }
 
 const EMA_ALPHA = 0.08
+const WINDOW_SIZE = 120
+const SPIKE_MS = 33
 
 let lastFrameTime = null
+const frameDeltas = []
 
 function passLabel(pass) {
   const base = pass.name || pass.constructor.name || 'Pass'
@@ -67,6 +72,19 @@ export function markFrame() {
       perfRegistry.fps = perfRegistry.fps
         ? perfRegistry.fps + (instantFps - perfRegistry.fps) * EMA_ALPHA
         : instantFps
+
+      frameDeltas.push(delta)
+      if (frameDeltas.length > WINDOW_SIZE) frameDeltas.shift()
+
+      // The plain fps EMA smooths away spikes, so it can read "60" on a
+      // stream that periodically hitches — this pair is the jank-honest
+      // complement: 1% low is the avg of the worst ~1% of frames in the
+      // window (min 1 frame), spikes counts frames over SPIKE_MS.
+      const sorted = [...frameDeltas].sort((a, b) => b - a)
+      const worstCount = Math.max(1, Math.ceil(sorted.length * 0.01))
+      const worstAvg = sorted.slice(0, worstCount).reduce((sum, d) => sum + d, 0) / worstCount
+      perfRegistry.low1 = worstAvg > 0 ? 1000 / worstAvg : 0
+      perfRegistry.spikes = frameDeltas.reduce((count, d) => count + (d > SPIKE_MS ? 1 : 0), 0)
     }
   }
   lastFrameTime = now

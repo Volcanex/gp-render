@@ -73,7 +73,7 @@ export function useSensorParams() {
     },
   }), [userPresets])
 
-  const { timeOfDay, renderScale, upscaler, sharpen } = useControls({
+  const { timeOfDay, renderScale, upscaler, sharpen, aa } = useControls({
     World: folder({
       timeOfDay: {
         value: 14, min: 0, max: 24, step: 0.25,
@@ -92,6 +92,10 @@ export function useSensorParams() {
       sharpen: {
         value: 0, min: 0, max: 1, step: 0.05,
         hint: 'RCAS sharpening (from AMD FSR)',
+      },
+      aa: {
+        value: true,
+        hint: 'SMAA anti-aliasing, applied before the dither so edges smooth but dots stay crisp',
       },
     }),
   })
@@ -231,5 +235,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, ...values }
+  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, ...values }
 }

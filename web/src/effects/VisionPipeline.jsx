@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
-import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, VignetteEffect } from 'postprocessing'
+import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, SMAAEffect, VignetteEffect } from 'postprocessing'
 import { N8AOPostPass } from 'n8ao'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
@@ -80,6 +80,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   useEffect(() => { ae.setMode(params.exposureMode) }, [ae, params.exposureMode])
   const meterCooldown = useRef(0)
   const autoWb = useRef(null)
+  const effScratch = useRef({})
   useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
   // debug hook: watch AF state from the console (window.__titanAF.current)
@@ -94,6 +95,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     return fx
   }, [params.scene])
   useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])
+
+  // SMAA before the sensor stylisation: geometry edges smooth, dither stays crisp
+  const smaa = useMemo(() => (params.aa ? new SMAAEffect() : null), [params.aa])
+  useEffect(() => () => { if (smaa) smaa.dispose?.() }, [smaa])
 
   // Lens character: bloom/CA/vignette apply to the clean image before the
   // sensor stylisation, like real glass ahead of the sensor. Each exists in
@@ -170,7 +175,8 @@ export default function VisionPipeline({ params, clutTexture }) {
       ae.update(delta, null)
     }
     // effective exposure: auto modes override ev or iso, sliders stay the base
-    const eff = { ...params }
+    // (reused object — a fresh spread every frame feeds the GC and causes jank)
+    const eff = Object.assign(effScratch.current, params)
     if (params.exposureMode === 'auto-ev') eff.ev = params.ev + ae.stops
     else if (params.exposureMode === 'auto-iso') eff.iso = ae.autoIso(params.iso)
     sensor.setParams(eff)
@@ -192,7 +198,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       // so doing it every frame costs real frame time
       pickCooldown.current -= delta
       if (picker && params.afMode !== 'manual' && !reading.current && pickCooldown.current <= 0) {
-        pickCooldown.current = 0.12
+        pickCooldown.current = 0.2
         reading.current = true
         // the pass costs real frame time every frame it renders, so it stays
         // disabled except for the frames a read is actually in flight
@@ -239,6 +245,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       {volFog ? <primitive object={volFog} /> : null}
+      {smaa ? <primitive object={smaa} /> : null}
       {bloom ? <primitive object={bloom} /> : null}
       {chromAb ? <primitive object={chromAb} /> : null}
       {vignetteFx ? <primitive object={vignetteFx} /> : null}
