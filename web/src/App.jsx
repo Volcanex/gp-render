@@ -6,6 +6,7 @@ import CameraRig from './scene/CameraRig.jsx'
 import VisionPipeline from './effects/VisionPipeline.jsx'
 import PaletteEditor from './palette/PaletteEditor.jsx'
 import { useSensorParams } from './ui/Controls.jsx'
+import PerfHud from './perf/PerfHud.jsx'
 import { identity332, makeClutTexture } from './palette/clut.js'
 import { applyClutPreset } from './palette/clutPresets.js'
 
@@ -42,6 +43,8 @@ export default function App() {
         </Suspense>
         <VisionPipeline params={params} clutTexture={clutTexture} />
       </Canvas>
+      <div className="crosshair" />
+      {params.perf ? <PerfHud /> : null}
       <PaletteEditor clutData={clutData} clutTexture={clutTexture} version={clutVersion} />
     </>
   )

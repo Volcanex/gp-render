@@ -1,13 +1,27 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PointerLockControls } from '@react-three/drei'
+import * as THREE from 'three'
 
-const BASE_SPEED = 6
-const SHIFT_MULT = 4
+const FLY_SPEED = 6
+const FLY_SHIFT_MULT = 4
 
-const KEY_TO_ACTION = {
+const WALK_SPEED = 4
+const WALK_RUN_MULT = 1.8
+const GRAVITY = -18
+const JUMP_VELOCITY = 7
+const EYE_HEIGHT = 1.7
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0)
+
+const FLY_KEY_TO_ACTION = {
   KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right',
   KeyQ: 'down', KeyE: 'up', ShiftLeft: 'boost', ShiftRight: 'boost',
+}
+
+const WALK_KEY_TO_ACTION = {
+  KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right',
+  ShiftLeft: 'boost', ShiftRight: 'boost', Space: 'jump',
 }
 
 function useFocalLength(focalLength) {
@@ -18,17 +32,18 @@ function useFocalLength(focalLength) {
   }, [camera, focalLength])
 }
 
-function FlyControls() {
-  const { camera } = useThree()
+function useKeyState(mapping) {
   const keys = useRef({})
-
   useEffect(() => {
     const onKeyDown = (e) => {
-      const action = KEY_TO_ACTION[e.code]
-      if (action) keys.current[action] = true
+      const action = mapping[e.code]
+      if (action) {
+        keys.current[action] = true
+        if (action === 'jump') e.preventDefault()
+      }
     }
     const onKeyUp = (e) => {
-      const action = KEY_TO_ACTION[e.code]
+      const action = mapping[e.code]
       if (action) keys.current[action] = false
     }
     window.addEventListener('keydown', onKeyDown)
@@ -38,17 +53,26 @@ function FlyControls() {
       window.removeEventListener('keyup', onKeyUp)
       keys.current = {}
     }
-  }, [])
+  }, [mapping])
+  return keys
+}
 
+function useExitPointerLockOnUnmount() {
   useEffect(() => {
     return () => {
       if (document.pointerLockElement) document.exitPointerLock()
     }
   }, [])
+}
+
+function FlyControls() {
+  const { camera } = useThree()
+  const keys = useKeyState(FLY_KEY_TO_ACTION)
+  useExitPointerLockOnUnmount()
 
   useFrame((_, delta) => {
     const k = keys.current
-    const speed = BASE_SPEED * (k.boost ? SHIFT_MULT : 1) * delta
+    const speed = FLY_SPEED * (k.boost ? FLY_SHIFT_MULT : 1) * delta
     if (k.forward) camera.translateZ(-speed)
     if (k.back) camera.translateZ(speed)
     if (k.left) camera.translateX(-speed)
@@ -60,9 +84,60 @@ function FlyControls() {
   return <PointerLockControls makeDefault selector="canvas" />
 }
 
+function WalkControls() {
+  const { camera } = useThree()
+  const keys = useKeyState(WALK_KEY_TO_ACTION)
+  useExitPointerLockOnUnmount()
+
+  const vy = useRef(0)
+  const grounded = useRef(true)
+  const forward = useRef(new THREE.Vector3())
+  const right = useRef(new THREE.Vector3())
+  const move = useRef(new THREE.Vector3())
+
+  useFrame((_, delta) => {
+    const k = keys.current
+
+    // horizontal-only look direction: flatten to the XZ plane before
+    // deriving forward/right so looking up/down doesn't change speed
+    camera.getWorldDirection(forward.current)
+    forward.current.y = 0
+    if (forward.current.lengthSq() > 0) forward.current.normalize()
+    right.current.crossVectors(forward.current, WORLD_UP).normalize()
+
+    move.current.set(0, 0, 0)
+    if (k.forward) move.current.add(forward.current)
+    if (k.back) move.current.sub(forward.current)
+    if (k.right) move.current.add(right.current)
+    if (k.left) move.current.sub(right.current)
+    if (move.current.lengthSq() > 0) move.current.normalize()
+
+    const speed = WALK_SPEED * (k.boost ? WALK_RUN_MULT : 1) * delta
+    camera.position.x += move.current.x * speed
+    camera.position.z += move.current.z * speed
+
+    if (k.jump && grounded.current) {
+      vy.current = JUMP_VELOCITY
+      grounded.current = false
+    }
+
+    vy.current += GRAVITY * delta
+    camera.position.y += vy.current * delta
+
+    if (camera.position.y <= EYE_HEIGHT) {
+      camera.position.y = EYE_HEIGHT
+      vy.current = 0
+      grounded.current = true
+    }
+  })
+
+  return <PointerLockControls makeDefault selector="canvas" />
+}
+
 export default function CameraRig({ mode, focalLength }) {
   useFocalLength(focalLength)
 
   if (mode === 'fly') return <FlyControls />
+  if (mode === 'walk') return <WalkControls />
   return <OrbitControls makeDefault enableDamping />
 }

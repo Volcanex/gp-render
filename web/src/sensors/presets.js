@@ -88,7 +88,7 @@ export const SENSOR_PRESETS = {
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
-    outline: true, outlineStrength: 1,
+    outline: false, outlineStrength: 1,
     seeVisible: true, seeUv: false, seeIr: false,
     uvColor: '#9040ff', irColor: '#ff5020',
   },

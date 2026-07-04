@@ -1,14 +1,42 @@
-import { useEffect } from 'react'
-import { useControls, folder } from 'leva'
+import { useEffect, useRef, useState } from 'react'
+import { useControls, folder, button } from 'leva'
 import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
 import { CLUT_PRESETS } from '../palette/clutPresets.js'
 
+const USER_PRESETS_KEY = 'titan.userPresets'
+
+function loadUserPresets() {
+  try {
+    const raw = window.localStorage.getItem(USER_PRESETS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveUserPresets(presets) {
+  try {
+    window.localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(presets))
+  } catch {
+    // ignore quota/serialisation errors
+  }
+}
+
 export function useSensorParams() {
-  const { sensor, scene, textures, moveMode } = useControls({
+  const [userPresets, setUserPresets] = useState(loadUserPresets)
+
+  const merged = {
+    ...SENSOR_PRESETS,
+    ...Object.fromEntries(
+      Object.entries(userPresets).map(([name, params]) => [`user:${name}`, { label: `★ ${name}`, ...params }])
+    ),
+  }
+
+  const [{ sensor, scene, textures, moveMode, perf }, setGlobals] = useControls(() => ({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
-        Object.entries(SENSOR_PRESETS).map(([id, preset]) => [preset.label, id])
+        Object.entries(merged).map(([id, p]) => [p.label, id])
       ),
     },
     scene: {
@@ -22,10 +50,14 @@ export function useSensorParams() {
     },
     moveMode: {
       value: 'orbit',
-      options: ['orbit', 'fly'],
-      hint: 'fly = WASD/QE + click canvas for mouse look, Esc to release',
+      options: ['orbit', 'fly', 'walk'],
+      hint: 'fly = WASD/QE + click canvas for mouse look, Esc to release; walk = WASD + gravity, space to jump',
     },
-  })
+    perf: {
+      value: true,
+      hint: 'FPS + per-pass timings',
+    },
+  }), [userPresets])
 
   const preset = SENSOR_PRESETS[DEFAULT_SENSOR]
 
@@ -85,12 +117,47 @@ export function useSensorParams() {
       uvColor: { value: preset.uvColor },
       irColor: { value: preset.irColor },
     }),
+    Presets: folder({
+      'save preset…': button(() => {
+        const name = window.prompt('Preset name?')
+        if (!name) return
+        const next = { ...userPresetsRef.current, [name]: { ...valuesRef.current } }
+        setUserPresets(next)
+        saveUserPresets(next)
+      }),
+      'delete preset': button(() => {
+        const currentSensor = sensorRef.current
+        if (!currentSensor.startsWith('user:')) {
+          console.warn('delete preset: select a user-saved preset first')
+          return
+        }
+        const name = currentSensor.slice('user:'.length)
+        const next = { ...userPresetsRef.current }
+        delete next[name]
+        setUserPresets(next)
+        saveUserPresets(next)
+        setGlobals({ sensor: DEFAULT_SENSOR })
+      }),
+    }),
   }))
 
-  useEffect(() => {
-    const { label, ...rest } = SENSOR_PRESETS[sensor]
-    set(rest)
-  }, [sensor, set])
+  const valuesRef = useRef(values)
+  useEffect(() => { valuesRef.current = values }, [values])
 
-  return { sensor, scene, textures, moveMode, ...values }
+  const sensorRef = useRef(sensor)
+  useEffect(() => { sensorRef.current = sensor }, [sensor])
+
+  const userPresetsRef = useRef(userPresets)
+  useEffect(() => { userPresetsRef.current = userPresets }, [userPresets])
+
+  useEffect(() => {
+    const activePreset = sensor.startsWith('user:')
+      ? userPresets[sensor.slice('user:'.length)]
+      : SENSOR_PRESETS[sensor]
+    if (!activePreset) return
+    const { label, ...rest } = activePreset
+    set(rest)
+  }, [sensor, userPresets, set])
+
+  return { sensor, scene, textures, moveMode, perf, ...values }
 }

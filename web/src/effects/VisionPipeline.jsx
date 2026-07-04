@@ -16,6 +16,7 @@ import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
+import { attachPassTimers, markFrame } from '../perf/passTimers.js'
 import { getRampTexture } from './ramps.js'
 
 const euler = new THREE.Euler()
@@ -49,6 +50,8 @@ export default function VisionPipeline({ params, clutTexture }) {
   const af = useMemo(() => new AutofocusController(), [])
   const measured = useRef(null)
   const reading = useRef(false)
+  const pickCooldown = useRef(0)
+  const composerRef = useRef(null)
   useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
   // debug hook: watch AF state from the console (window.__titanAF.current)
@@ -77,11 +80,23 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (dof) dof.bokehScale = THREE.MathUtils.clamp((params.focalLength / 50) * (10 / params.fNumber), 0.5, 14)
   }, [params, ramp, sensor, vision, outline, dof, clutTexture, errorDiffusion, edPass])
 
+  // (re)wrap pass render methods with timers whenever the chain changes
+  useEffect(() => {
+    if (composerRef.current) attachPassTimers(composerRef.current)
+  })
+
   useFrame((state, delta) => {
+    markFrame()
     if (dof) {
-      // sample crosshair depth (throttled async GPU readback)
-      if (picker && params.afMode !== 'manual' && !reading.current) {
+      // sample crosshair depth — throttled: the readback forces a GPU sync,
+      // so doing it every frame costs real frame time
+      pickCooldown.current -= delta
+      if (picker && params.afMode !== 'manual' && !reading.current && pickCooldown.current <= 0) {
+        pickCooldown.current = 0.12
         reading.current = true
+        // the pass costs real frame time every frame it renders, so it stays
+        // disabled except for the frames a read is actually in flight
+        picker.enabled = true
         pickVec.set(0, 0, 0)
         picker.readDepth(pickVec).then((d) => {
           pickVec.set(0, 0, d * 2 - 1)
@@ -92,7 +107,8 @@ export default function VisionPipeline({ params, clutTexture }) {
             measured.current = null
           }
           reading.current = false
-        }).catch(() => { reading.current = false })
+          picker.enabled = false
+        }).catch(() => { reading.current = false; picker.enabled = false })
       }
       af.update(delta, measured.current)
       dof.cocMaterial.focusDistance = af.current
@@ -117,7 +133,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   })
 
   return (
-    <EffectComposer depthBuffer multisampling={0}>
+    <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       <primitive object={sensor} />
