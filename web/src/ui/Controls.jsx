@@ -106,6 +106,10 @@ export function useSensorParams() {
         value: preset.wbAuto ?? false,
         hint: 'gray-world auto white balance, lagged',
       },
+      toneS: {
+        value: preset.toneS ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'filmic S-curve — toe/shoulder contrast on top of dynamic range',
+      },
     }),
     Optics: folder({
       dof: { value: preset.dof },
@@ -118,6 +122,20 @@ export function useSensorParams() {
         value: preset.afMode,
         options: ['manual', 'instant', 'lazy', 'hunting'],
         hint: 'autofocus character; manual uses the focusDistance slider',
+      },
+    }),
+    Lens: folder({
+      vignette: {
+        value: preset.vignette ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'corner light falloff',
+      },
+      chromAb: {
+        value: preset.chromAb ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'chromatic aberration — colour fringing, cheap glass',
+      },
+      bloom: {
+        value: preset.bloom ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'highlight bloom/halation',
       },
     }),
     Dither: folder({

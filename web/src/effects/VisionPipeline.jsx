@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
-import { DepthOfFieldEffect, DepthPickingPass } from 'postprocessing'
+import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, VignetteEffect } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
@@ -68,6 +68,30 @@ export default function VisionPipeline({ params, clutTexture }) {
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
   // debug hook: watch AF state from the console (window.__titanAF.current)
   useEffect(() => { window.__titanAF = af }, [af])
+
+  // Lens character: bloom/CA/vignette apply to the clean image before the
+  // sensor stylisation, like real glass ahead of the sensor. Each exists in
+  // the chain only while its amount is non-zero.
+  const bloom = useMemo(
+    () => (params.bloom > 0 ? new BloomEffect({ intensity: 1, luminanceThreshold: 0.7, luminanceSmoothing: 0.2, mipmapBlur: true }) : null),
+    [params.bloom > 0],
+  )
+  useEffect(() => () => { if (bloom) bloom.dispose() }, [bloom])
+  const chromAb = useMemo(
+    () => (params.chromAb > 0 ? new ChromaticAberrationEffect({ offset: new THREE.Vector2(0.001, 0.001), radialModulation: true, modulationOffset: 0.15 }) : null),
+    [params.chromAb > 0],
+  )
+  useEffect(() => () => { if (chromAb) chromAb.dispose() }, [chromAb])
+  const vignetteFx = useMemo(
+    () => (params.vignette > 0 ? new VignetteEffect({ offset: 0.3, darkness: 0.5 }) : null),
+    [params.vignette > 0],
+  )
+  useEffect(() => () => { if (vignetteFx) vignetteFx.dispose() }, [vignetteFx])
+  useEffect(() => {
+    if (bloom) bloom.intensity = params.bloom * 2
+    if (chromAb) chromAb.offset.set(params.chromAb * 0.004, params.chromAb * 0.004)
+    if (vignetteFx) vignetteFx.darkness = params.vignette
+  }, [params, bloom, chromAb, vignetteFx])
 
   // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader —
   // it replaces VisionEffect in the chain when selected.
@@ -175,6 +199,9 @@ export default function VisionPipeline({ params, clutTexture }) {
     <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
+      {bloom ? <primitive object={bloom} /> : null}
+      {chromAb ? <primitive object={chromAb} /> : null}
+      {vignetteFx ? <primitive object={vignetteFx} /> : null}
       <primitive object={meter} />
       <primitive object={sensor} />
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}

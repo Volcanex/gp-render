@@ -31,6 +31,7 @@ uniform float uApertureGain;
 uniform float uIsoGain;
 uniform vec3 uWbGains;
 uniform float uDynRange;
+uniform float uToneS;
 uniform float uGrainAmount;
 uniform bool uAnimated;
 
@@ -46,6 +47,14 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     float luma = dot(vec3(0.2126, 0.7152, 0.0722), c);
     float lifted = clamp((log2(max(luma, 1e-6)) + uDynRange) / uDynRange, 0.0, 1.0);
     c *= lifted / max(luma, 1e-6);
+  }
+
+  if (uToneS > 0.0) {
+    float luma = dot(vec3(0.2126, 0.7152, 0.0722), c);
+    float t = clamp(luma, 0.0, 1.0);
+    float curved = t * t * (3.0 - 2.0 * t);
+    float outLuma = mix(t, curved, uToneS);
+    c *= outLuma / max(luma, 1e-6);
   }
 
   float seed = uAnimated ? time : 0.0;
@@ -68,6 +77,7 @@ export class SensorEffect extends Effect {
         ['uIsoGain', new Uniform(1)],
         ['uWbGains', new Uniform(new Vector3(1, 1, 1))],
         ['uDynRange', new Uniform(0)],
+        ['uToneS', new Uniform(0)],
         ['uGrainAmount', new Uniform(0)],
         ['uAnimated', new Uniform(true)],
       ]),
@@ -84,6 +94,7 @@ export class SensorEffect extends Effect {
     this._manualWbGains = wbGains(params.whiteBalance || 6500)
     this._updateWbUniform()
     this.uniforms.get('uDynRange').value = params.dynamicRange || 0
+    this.uniforms.get('uToneS').value = params.toneS || 0
     this.uniforms.get('uGrainAmount').value = params.grain ? 0.35 * (params.iso - 100) / 12700 : 0
     this.uniforms.get('uAnimated').value = !!params.grainAnimated
   }

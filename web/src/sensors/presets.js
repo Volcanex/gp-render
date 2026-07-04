@@ -27,6 +27,11 @@
 //                          gets bright AND grainy like a real camera
 //   whiteBalance: float  — Kelvin the sensor corrects for; 6500 = neutral
 //   wbAuto: bool         — gray-world auto white balance (lagged)
+//   toneS: float         — 0..1 filmic S-curve (toe/shoulder) on top of the
+//                          dynamic-range response
+//   vignette: float      — 0..1 corner light falloff
+//   chromAb: float       — 0..1 chromatic aberration (radial colour fringing)
+//   bloom: float         — 0..1 highlight bloom/halation
 //   dynamicRange: float  — sensor latitude in stops; 0 = plain linear response
 //                          (shadows crush fast), higher = log-encoded shadow lift,
 //                          the "expensive sensor sees into the dark" lever
@@ -95,6 +100,7 @@ export const SENSOR_PRESETS = {
     label: 'MK-1 Optic (flagship)',
     ev: 0, iso: 100, fNumber: 4, dof: true, focusDistance: 8, focalLength: 35, afMode: 'instant',
     exposureMode: 'auto-iso', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.4, vignette: 0.15, chromAb: 0.05, bloom: 0.15,
     dynamicRange: 10, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb', levels: 16, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -106,6 +112,7 @@ export const SENSOR_PRESETS = {
     label: 'Cine Gate (shallow)',
     ev: -4.0, iso: 200, fNumber: 1.8, dof: true, focusDistance: 8, focalLength: 50, afMode: 'lazy',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.6, vignette: 0.3, chromAb: 0.1, bloom: 0.35,
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb', levels: 8, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -117,6 +124,7 @@ export const SENSOR_PRESETS = {
     label: 'Monastic (1-bit)',
     ev: -2.0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'manual',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.3, vignette: 0.2, chromAb: 0.0, bloom: 0.0,
     dynamicRange: 4, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -126,8 +134,9 @@ export const SENSOR_PRESETS = {
   },
   salvage: {
     label: 'Salvage CCD (cheap)',
-    ev: -4.5, iso: 1600, fNumber: 8, dof: false, focusDistance: 8, focalLength: 28, afMode: 'hunting',
+    ev: -3.5, iso: 1600, fNumber: 8, dof: false, focusDistance: 8, focalLength: 28, afMode: 'hunting',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.1, vignette: 0.35, chromAb: 0.6, bloom: 0.2,
     dynamicRange: 0, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'rgb', levels: 3, ditherMode: 'white', ditherScale: 2,
     pinning: 'off', palette: 'mono', pixelSize: 3, clutPreset: 'identity',
@@ -139,6 +148,7 @@ export const SENSOR_PRESETS = {
     label: 'Ordnance Grid (bayer)',
     ev: -1.0, iso: 200, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.2, vignette: 0.1, chromAb: 0.0, bloom: 0.1,
     dynamicRange: 5, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'rgb', levels: 4, ditherMode: 'bayer8', ditherScale: 1,
     pinning: 'rotation', palette: 'phosphor', pixelSize: 2, clutPreset: 'identity',
@@ -150,6 +160,7 @@ export const SENSOR_PRESETS = {
     label: 'UV Scope',
     ev: -2.0, iso: 800, fNumber: 2.8, dof: false, focusDistance: 8, focalLength: 24, afMode: 'instant',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.3, vignette: 0.4, chromAb: 0.3, bloom: 0.45,
     dynamicRange: 7, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'ramp', levels: 3, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'uvviolet', pixelSize: 2, clutPreset: 'identity',
@@ -161,6 +172,7 @@ export const SENSOR_PRESETS = {
     label: 'IR Thermal',
     ev: -5.0, iso: 3200, fNumber: 2, dof: false, focusDistance: 8, focalLength: 60, afMode: 'lazy',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.2, vignette: 0.45, chromAb: 0.15, bloom: 0.5,
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 8, ditherMode: 'bluenoise', ditherScale: 2,
     pinning: 'off', palette: 'irheat', pixelSize: 4, clutPreset: 'identity',
@@ -172,6 +184,7 @@ export const SENSOR_PRESETS = {
     label: 'Full Spectrum (vis+uv+ir)',
     ev: -3.0, iso: 800, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.4, vignette: 0.2, chromAb: 0.1, bloom: 0.25,
     dynamicRange: 5, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -183,6 +196,7 @@ export const SENSOR_PRESETS = {
     label: 'Handheld (gameboy)',
     ev: 0.0, iso: 100, fNumber: 11, dof: false, focusDistance: 8, focalLength: 26, afMode: 'manual',
     exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    toneS: 0.2, vignette: 0.35, chromAb: 0.2, bloom: 0.0,
     dynamicRange: 3, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'ramp', levels: 4, ditherMode: 'bayer8', ditherScale: 2,
     pinning: 'off', palette: 'gameboy', pixelSize: 4, clutPreset: 'identity',
