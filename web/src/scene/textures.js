@@ -324,6 +324,86 @@ function genPlates(rand, size, scale, colorA, colorB) {
   return canvas
 }
 
+// flagship layered generator: several noise passes stacked to read as weathered rock
+function genRock(rand, size, scale, colorA, colorB) {
+  const canvas = makeCanvas(size)
+  const fbmBase = makeFbm(rand, Math.max(2, Math.round(4 * scale))) // ridged base
+  const fbmWarpX = makeFbm(rand, Math.max(2, Math.round(3 * scale))) // domain-warp offsets
+  const fbmWarpY = makeFbm(rand, Math.max(2, Math.round(3 * scale)))
+  const fbmCavity = makeFbm(rand, Math.max(2, Math.round(2 * scale))) // low-freq recess mask
+  const speckleLat = makeLattice(rand, Math.max(4, Math.round((size / 3) * scale))) // fine grit
+  const a = hexToRgb(colorA)
+  const b = hexToRgb(colorB)
+  const warpStrength = 0.18
+  const strataFreq = 3 * scale
+  paintPixels(canvas, size, (x, y) => {
+    const u = x / size
+    const v = y / size
+
+    // a) domain warping: perturb the sample point before it hits the ridged
+    // base, so ridges bend into geological flow instead of a regular grid.
+    // The warp lattices wrap the same way the base lattice does, so the
+    // perturbed lookup still tiles at the canvas edges.
+    const wx = fbmWarpX(u, v, 3) - 0.5
+    const wy = fbmWarpY(u + 0.37, v + 0.61, 3) - 0.5
+    const wu = u + wx * warpStrength
+    const wv = v + wy * warpStrength
+
+    // b) ridged fBm: fold the base noise around its midpoint so it reads as
+    // sharp creases instead of soft blobs.
+    const base = fbmBase(wu, wv, 4)
+    const ridged = 1 - Math.abs(2 * base - 1)
+
+    // c) strata: faint horizontal banding riding on the warped v coordinate,
+    // reads as sedimentary layers cut through by the ridges.
+    const strata = Math.sin(wv * strataFreq * Math.PI * 2) * 0.08
+
+    // d) cavity darkening: a separate, lower-frequency fbm thresholded to
+    // pick out recessed pockets and darken them.
+    const cavity = fbmCavity(u, v, 3)
+    const cavityMult = 0.55 + 0.45 * clamp01((cavity - 0.35) / 0.5)
+
+    // e) fine speckle: high-frequency lattice sampled directly (no fBm
+    // averaging) for mineral grit riding on top of everything else.
+    const speckle = (speckleLat.sample(u * speckleLat.size, v * speckleLat.size) - 0.5) * 0.12
+
+    const n = clamp01(ridged + strata)
+    const r = lerp(a[0], b[0], n) * cavityMult + speckle * 255
+    const g = lerp(a[1], b[1], n) * cavityMult + speckle * 255
+    const bch = lerp(a[2], b[2], n) * cavityMult + speckle * 255
+    return [clamp01(r / 255) * 255, clamp01(g / 255) * 255, clamp01(bch / 255) * 255]
+  })
+  return canvas
+}
+
+function genChalk(rand, size, scale, colorA, colorB) {
+  const canvas = makeCanvas(size)
+  const fbmMottle = makeFbm(rand, Math.max(2, Math.round(4 * scale)))
+  const fbmStreak = makeFbm(rand, Math.max(2, Math.round(4 * scale)))
+  const chipLat = makeLattice(rand, Math.max(4, Math.round(10 * scale)))
+  const a = hexToRgb(colorA)
+  const b = hexToRgb(colorB)
+  const chip = [b[0] * 0.4, b[1] * 0.4, b[2] * 0.4]
+  paintPixels(canvas, size, (x, y) => {
+    const u = x / size
+    const v = y / size
+    const mottle = fbmMottle(u, v, 4) * 0.22
+    // stretched sampling: low frequency along v elongates features into
+    // vertical streaks (drip/wear marks running down the pole)
+    const streak = fbmStreak(u * 4 * scale, v * 1.1 * scale, 3) * 0.12
+    const n = clamp01(0.5 + mottle + streak)
+    const chipVal = chipLat.sample(u * chipLat.size, v * chipLat.size)
+    const isChip = chipVal > 0.9
+    const rgb = [lerp(a[0], b[0], n), lerp(a[1], b[1], n), lerp(a[2], b[2], n)]
+    if (isChip) {
+      const t = clamp01((chipVal - 0.9) * 8)
+      return [lerp(rgb[0], chip[0], t), lerp(rgb[1], chip[1], t), lerp(rgb[2], chip[2], t)]
+    }
+    return rgb
+  })
+  return canvas
+}
+
 const DEFAULTS = {
   noise: { colorA: '#202020', colorB: '#e0e0e0' },
   wood: { colorA: '#5a3a20', colorB: '#c89058' },
@@ -332,6 +412,8 @@ const DEFAULTS = {
   rust: { colorA: '#5a6068', colorB: '#b5561e' },
   grid: { colorA: '#787878', colorB: '#e8e8e8' },
   plates: { colorA: '#3a4048', colorB: '#8a94a0' },
+  rock: { colorA: '#4a2410', colorB: '#c26a2a' },
+  chalk: { colorA: '#e8e6e0', colorB: '#d8d4c8' },
 }
 
 const GENERATORS = {
@@ -342,6 +424,8 @@ const GENERATORS = {
   rust: genRust,
   grid: genGrid,
   plates: genPlates,
+  rock: genRock,
+  chalk: genChalk,
 }
 
 export function makeTexture(kind, opts = {}) {

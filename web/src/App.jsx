@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import TestScene from './scene/TestScene.jsx'
 import RaymarchScene from './scene/RaymarchScene.jsx'
+import TitanScene from './scene/TitanScene.jsx'
 import CameraRig from './scene/CameraRig.jsx'
 import VisionPipeline from './effects/VisionPipeline.jsx'
 import PaletteEditor from './palette/PaletteEditor.jsx'
@@ -55,20 +56,30 @@ export default function App() {
         camera={{ position: [4, 2.5, 5], fov: 60 }}
         dpr={params.renderScale}
       >
+        {params.scene !== 'titan' ? (
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
+      ) : null}
         <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
         <Suspense fallback={null}>
-          {params.scene === 'raymarch'
-            ? <RaymarchScene timeOfDay={params.timeOfDay} torch={torch} bands={{
-                visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
-                uvColor: params.uvColor, irColor: params.irColor,
-                uvGain: params.uvGain, irGain: params.irGain,
-              }} />
-            : <TestScene textures={params.textures} timeOfDay={params.timeOfDay} torch={torch} bands={{
-                visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
-                uvColor: params.uvColor, irColor: params.irColor,
-                uvGain: params.uvGain, irGain: params.irGain,
-              }} />}
+          {params.scene === 'raymarch' ? (
+            <RaymarchScene timeOfDay={params.timeOfDay} torch={torch} bands={{
+              visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
+              uvColor: params.uvColor, irColor: params.irColor,
+              uvGain: params.uvGain, irGain: params.irGain,
+            }} />
+          ) : params.scene === 'titan' ? (
+            <TitanScene timeOfDay={params.timeOfDay} torch={torch} bands={{
+              visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
+              uvColor: params.uvColor, irColor: params.irColor,
+              uvGain: params.uvGain, irGain: params.irGain,
+            }} />
+          ) : (
+            <TestScene textures={params.textures} timeOfDay={params.timeOfDay} torch={torch} bands={{
+              visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
+              uvColor: params.uvColor, irColor: params.irColor,
+              uvGain: params.uvGain, irGain: params.irGain,
+            }} />
+          )}
         </Suspense>
         <VisionPipeline params={params} clutTexture={clutTexture} />
       </Canvas>

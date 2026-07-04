@@ -19,6 +19,8 @@ import { SharpenEffect } from './SharpenEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { MeteringPass, AutoExposureController } from './metering.js'
+import { VolumetricFogEffect } from './VolumetricFogEffect.js'
+import { TITAN_LAMPS } from '../scene/TitanScene.jsx'
 import { attachPassTimers, markFrame } from '../perf/passTimers.js'
 import { getRampTexture } from './ramps.js'
 
@@ -82,6 +84,16 @@ export default function VisionPipeline({ params, clutTexture }) {
   // debug hook: watch AF state from the console (window.__titanAF.current)
   useEffect(() => { window.__titanAF = af }, [af])
 
+  // Volumetric fog: depth-marched haze with lamp inscatter, Titan scene only
+  const volFog = useMemo(() => {
+    if (params.scene !== 'titan') return null
+    const fx = new VolumetricFogEffect()
+    fx.setLights(TITAN_LAMPS)
+    fx.setParams({ density: 0.010, fogColor: '#2a1608', enabled: false })
+    return fx
+  }, [params.scene])
+  useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])
+
   // Lens character: bloom/CA/vignette apply to the clean image before the
   // sensor stylisation, like real glass ahead of the sensor. Each exists in
   // the chain only while its amount is non-zero.
@@ -137,6 +149,7 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   useFrame((state, delta) => {
     markFrame()
+    if (volFog) volFog.updateCamera(camera)
     const metering = params.exposureMode !== 'manual' || params.wbAuto
     if (metering) {
       meterCooldown.current -= delta
@@ -224,6 +237,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       {aoPass ? <primitive object={aoPass} /> : null}
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
+      {volFog ? <primitive object={volFog} /> : null}
       {bloom ? <primitive object={bloom} /> : null}
       {chromAb ? <primitive object={chromAb} /> : null}
       {vignetteFx ? <primitive object={vignetteFx} /> : null}

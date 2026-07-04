@@ -58,22 +58,69 @@ export class MeteringPass extends Pass {
     this._readBuf = new Uint8Array(RT_SIZE * RT_SIZE * 4)
     this._armed = false
     this.lastSample = null
+
+    // Async PBO readback state (WebGL2), same state machine as
+    // ErrorDiffusionPass: _pending means a readPixels is in flight with a
+    // fence guarding it; while pending we just poll instead of blocking.
+    this._gl = null
+    this._usePBO = false
+    this._pbo = null
+    this._sync = null
+    this._pending = false
+  }
+
+  initialize(renderer, alpha, frameBufferType) {
+    super.initialize(renderer, alpha, frameBufferType)
+    const gl = renderer.getContext()
+    this._gl = gl
+    // fenceSync/getBufferSubData are WebGL2-only; their absence is the
+    // signal to fall back to the old synchronous path, not a version check.
+    this._usePBO = typeof gl.fenceSync === 'function' && typeof gl.getBufferSubData === 'function'
+    if (this._usePBO) {
+      this._pbo = gl.createBuffer()
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+      gl.bufferData(gl.PIXEL_PACK_BUFFER, RT_SIZE * RT_SIZE * 4, gl.STREAM_READ)
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+    }
   }
 
   requestSample() {
     this._armed = true
   }
 
-  render(renderer, inputBuffer) {
-    if (!this._armed) return
-
+  _downsample(renderer, inputBuffer) {
     this._copyMaterial.uniforms.uTex.value = inputBuffer.texture
     this.fullscreenMaterial = this._copyMaterial
     renderer.setRenderTarget(this._smallRT)
     renderer.render(this.scene, this.camera)
+  }
 
-    renderer.readRenderTargetPixels(this._smallRT, 0, 0, RT_SIZE, RT_SIZE, this._readBuf)
+  // Fires an async readPixels into the PBO and fences it; never blocks.
+  _kickReadPixels() {
+    const gl = this._gl
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+    gl.readPixels(0, 0, RT_SIZE, RT_SIZE, gl.RGBA, gl.UNSIGNED_BYTE, 0)
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+    this._sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+    gl.flush()
+    this._pending = true
+  }
 
+  // Non-blocking poll. Returns true (and pulls the data into _readBuf) only
+  // once the fence has actually signaled; false means keep waiting.
+  _resolvePending() {
+    const gl = this._gl
+    if (gl.getSyncParameter(this._sync, gl.SYNC_STATUS) !== gl.SIGNALED) return false
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, this._readBuf)
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+    gl.deleteSync(this._sync)
+    this._sync = null
+    this._pending = false
+    return true
+  }
+
+  _computeSample() {
     const buf = this._readBuf
     const n = RT_SIZE * RT_SIZE
     let rSum = 0
@@ -88,9 +135,34 @@ export class MeteringPass extends Pass {
     const g = gSum / n / 255
     const b = bSum / n / 255
     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
-
     this.lastSample = { luma, r, g, b }
-    this._armed = false
+  }
+
+  // requestSample() arms; the actual read may take one or more frames to
+  // resolve once kicked (async PBO + fence), which the AE controller
+  // tolerates fine — it's already a ~0.6s lag controller.
+  render(renderer, inputBuffer) {
+    if (!this._usePBO) {
+      // Sync fallback (no WebGL2 fenceSync): sample-on-request, inline.
+      if (!this._armed) return
+      this._downsample(renderer, inputBuffer)
+      renderer.readRenderTargetPixels(this._smallRT, 0, 0, RT_SIZE, RT_SIZE, this._readBuf)
+      this._computeSample()
+      this._armed = false
+      return
+    }
+
+    if (this._pending) {
+      if (this._resolvePending()) this._computeSample()
+      // else: fence hasn't signaled yet — keep waiting, lastSample unchanged
+      return
+    }
+
+    if (this._armed) {
+      this._downsample(renderer, inputBuffer)
+      this._kickReadPixels()
+      this._armed = false
+    }
   }
 
   setSize() {
@@ -98,6 +170,11 @@ export class MeteringPass extends Pass {
   }
 
   dispose() {
+    const gl = this._gl
+    if (gl) {
+      if (this._sync) gl.deleteSync(this._sync)
+      if (this._pbo) gl.deleteBuffer(this._pbo)
+    }
     this._smallRT.dispose()
     this._copyMaterial.dispose()
     super.dispose()

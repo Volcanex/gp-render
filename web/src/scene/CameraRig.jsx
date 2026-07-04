@@ -153,6 +153,14 @@ function WalkControls({ focalLength }) {
 
 export default function CameraRig({ mode, focalLength }) {
   useFocalLength(focalLength)
+  const { camera } = useThree()
+
+  // pointer-lock modes have no target: aim at the scene centre once on
+  // mount so every scene opens facing its subject (orbit does this itself)
+  useEffect(() => {
+    if (mode !== 'orbit') camera.lookAt(0, 1, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (mode === 'fly') return <FlyControls />
   if (mode === 'walk') return <WalkControls focalLength={focalLength} />

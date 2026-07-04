@@ -51,7 +51,7 @@ export function useSensorParams() {
     },
     scene: {
       value: 'geometry',
-      options: ['geometry', 'raymarch'],
+      options: ['geometry', 'titan', 'raymarch'],
       hint: 'spectrum (uv/ir) only applies to the geometry scene',
     },
     textures: {
@@ -59,7 +59,7 @@ export function useSensorParams() {
       hint: 'procedural texturing in the geometry scene',
     },
     moveMode: {
-      value: 'orbit',
+      value: 'walk',
       options: ['orbit', 'fly', 'walk'],
       hint: 'fly = WASD/QE + click canvas for mouse look, Esc to release; walk = WASD + gravity, space to jump',
     },
