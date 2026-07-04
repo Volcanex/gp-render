@@ -18,6 +18,11 @@ export function useSensorParams() {
     Exposure: folder({
       ev: { value: preset.ev, min: -4, max: 4, step: 0.1 },
       iso: { value: preset.iso, min: 100, max: 12800, step: 100 },
+      fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
+    }),
+    Optics: folder({
+      dof: { value: preset.dof },
+      focusDistance: { value: preset.focusDistance, min: 0, max: 1, step: 0.01 },
     }),
     Dither: folder({
       ditherMode: { value: preset.ditherMode, options: ['bluenoise', 'bayer8', 'white', 'none'] },
@@ -26,6 +31,7 @@ export function useSensorParams() {
       pinning: { value: preset.pinning, options: ['off', 'rotation'] },
     }),
     Look: folder({
+      colorMode: { value: preset.colorMode, options: ['rgb332', 'rgb', 'ramp'] },
       palette: { value: preset.palette, options: Object.keys(PALETTES) },
       pixelSize: { value: preset.pixelSize, min: 1, max: 8, step: 1 },
       outline: { value: preset.outline },

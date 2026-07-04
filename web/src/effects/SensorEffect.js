@@ -5,6 +5,7 @@ import { Uniform } from 'three'
 
 const fragmentShader = `
 uniform float uEv;
+uniform float uApertureGain;
 uniform float uGrainAmount;
 uniform bool uAnimated;
 
@@ -15,7 +16,7 @@ float hash(vec3 p) {
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = inputColor.rgb * exp2(uEv);
+  vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain;
 
   float seed = uAnimated ? time : 0.0;
   float n = hash(vec3(gl_FragCoord.xy, seed)) * 2.0 - 1.0;
@@ -33,6 +34,7 @@ export class SensorEffect extends Effect {
     super('SensorEffect', fragmentShader, {
       uniforms: new Map([
         ['uEv', new Uniform(0)],
+        ['uApertureGain', new Uniform(1)],
         ['uGrainAmount', new Uniform(0)],
         ['uAnimated', new Uniform(true)],
       ]),
@@ -41,6 +43,8 @@ export class SensorEffect extends Effect {
 
   setParams(params) {
     this.uniforms.get('uEv').value = params.ev
+    const f = Math.max(1, params.fNumber || 5.6)
+    this.uniforms.get('uApertureGain').value = (5.6 / f) ** 2
     this.uniforms.get('uGrainAmount').value = 0.35 * (params.iso - 100) / 12700
     this.uniforms.get('uAnimated').value = !!params.grainAnimated
   }

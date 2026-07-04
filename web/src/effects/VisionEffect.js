@@ -4,6 +4,7 @@ import { Uniform, Vector2 } from 'three'
 import { Effect } from 'postprocessing'
 
 const DITHER_MODES = { none: 0, bluenoise: 1, bayer8: 2, white: 3 }
+const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2 }
 
 const fragmentShader = /* glsl */ `
 uniform sampler2D uNoise;
@@ -14,6 +15,7 @@ uniform float uDitherScale;
 uniform float uPixelSize;
 uniform float uIso;
 uniform vec2 uDitherOffset;
+uniform int uColorMode;
 
 const mat4 bayer4 = mat4(
    0.0,  8.0,  2.0, 10.0,
@@ -66,10 +68,18 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float jitter = hash21(fragCoord + uDitherOffset * 1.37) - 0.5;
   t = clamp(t + jitter * isoAmount, 0.0, 1.0);
 
-  float q = floor(lum * (uLevels - 1.0) + t) / (uLevels - 1.0);
-  q = clamp(q, 0.0, 1.0);
-
-  outputColor = vec4(texture2D(uRamp, vec2(q, 0.5)).rgb, inputColor.a);
+  if (uColorMode == 1) {
+    vec3 q3 = clamp(floor(color.rgb * (uLevels - 1.0) + t) / (uLevels - 1.0), 0.0, 1.0);
+    outputColor = vec4(q3, inputColor.a);
+  } else if (uColorMode == 2) {
+    vec3 n332 = vec3(7.0, 7.0, 3.0);
+    vec3 q3 = clamp(floor(color.rgb * n332 + t) / n332, 0.0, 1.0);
+    outputColor = vec4(q3, inputColor.a);
+  } else {
+    float q = floor(lum * (uLevels - 1.0) + t) / (uLevels - 1.0);
+    q = clamp(q, 0.0, 1.0);
+    outputColor = vec4(texture2D(uRamp, vec2(q, 0.5)).rgb, inputColor.a);
+  }
 }
 `
 
@@ -85,6 +95,7 @@ export class VisionEffect extends Effect {
         ['uPixelSize', new Uniform(1)],
         ['uIso', new Uniform(400)],
         ['uDitherOffset', new Uniform(new Vector2())],
+        ['uColorMode', new Uniform(COLOR_MODES.rgb332)],
       ]),
     })
   }
@@ -95,6 +106,7 @@ export class VisionEffect extends Effect {
     this.uniforms.get('uDitherScale').value = Math.max(1, params.ditherScale)
     this.uniforms.get('uPixelSize').value = Math.max(1, params.pixelSize)
     this.uniforms.get('uIso').value = params.iso
+    this.uniforms.get('uColorMode').value = COLOR_MODES[params.colorMode] ?? COLOR_MODES.rgb332
   }
 
   setRamp(texture) {

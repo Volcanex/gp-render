@@ -10,6 +10,7 @@ import { useEffect, useMemo } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
+import { DepthOfFieldEffect } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
@@ -31,6 +32,11 @@ export default function VisionPipeline({ params }) {
   const sensor = useMemo(() => new SensorEffect(), [])
   const vision = useMemo(() => new VisionEffect({ noiseTexture: noise }), [noise])
   const outline = useMemo(() => new EdgeOutlineEffect(), [])
+  // DOF runs on the clean render, before the sensor/dither stylisation
+  const dof = useMemo(
+    () => (params.dof ? new DepthOfFieldEffect(camera, { focusDistance: params.focusDistance, focalLength: 0.05, bokehScale: 1 }) : null),
+    [params.dof, camera],
+  )
 
   const ramp = getRampTexture(params.palette)
   useEffect(() => {
@@ -38,7 +44,11 @@ export default function VisionPipeline({ params }) {
     vision.setParams(params)
     vision.setRamp(ramp)
     outline.setParams(params)
-  }, [params, ramp, sensor, vision, outline])
+    if (dof) {
+      dof.bokehScale = 10 / params.fNumber
+      dof.cocMaterial.uniforms.focusDistance.value = params.focusDistance
+    }
+  }, [params, ramp, sensor, vision, outline, dof])
 
   useFrame(() => {
     if (params.pinning === 'rotation') {
@@ -56,6 +66,7 @@ export default function VisionPipeline({ params }) {
 
   return (
     <EffectComposer depthBuffer multisampling={0}>
+      {dof ? <primitive object={dof} /> : null}
       <primitive object={sensor} />
       <primitive object={vision} />
       <primitive object={outline} />
