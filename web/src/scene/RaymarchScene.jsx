@@ -430,7 +430,55 @@ function computeSunState(timeOfDay) {
 
 const camForward = new THREE.Vector3()
 
+// JS replica of the fragment shader's terrain height (hash21/noise2D/fbm2 and
+// the terrainH formula in `map()`) so walk mode can sample ground height
+// without a GPU readback. Must stay numerically in sync with the GLSL above —
+// any change to hash21/noise2D/fbm2 or the 0.15/1.5/-0.4 terrain constants
+// there needs the same change mirrored here.
+function hash21JS(x, y) {
+  const s = Math.sin(x * 41.3 + y * 289.1) * 43758.5453123
+  return s - Math.floor(s)
+}
+
+function noise2DJS(x, y) {
+  const ix = Math.floor(x)
+  const iy = Math.floor(y)
+  const fx = x - ix
+  const fy = y - iy
+  const a = hash21JS(ix, iy)
+  const b = hash21JS(ix + 1, iy)
+  const c = hash21JS(ix, iy + 1)
+  const d = hash21JS(ix + 1, iy + 1)
+  const ux = fx * fx * (3 - 2 * fx)
+  const uy = fy * fy * (3 - 2 * fy)
+  return a + (b - a) * ux + (c - a) * uy * (1 - ux) + (d - b) * ux * uy
+}
+
+function fbm2JS(x, y) {
+  let f = 0
+  let amp = 0.55
+  let px = x
+  let py = y
+  for (let i = 0; i < 3; i++) {
+    f += amp * noise2DJS(px, py)
+    px *= 2.05
+    py *= 2.05
+    amp *= 0.5
+  }
+  return f
+}
+
+function terrainHeight(x, z) {
+  return fbm2JS(x * 0.15, z * 0.15) * 1.5 - 0.4
+}
+
 export default function RaymarchScene({ timeOfDay = 14, bands = {}, torch = false }) {
+  // walkable ground: CameraRig samples this so walk mode follows the terrain
+  useEffect(() => {
+    window.__groundFn = terrainHeight
+    return () => { if (window.__groundFn === terrainHeight) window.__groundFn = null }
+  }, [])
+
   const {
     visible = true, uv = false, ir = false,
     uvColor = '#9040ff', irColor = '#ff5020', uvGain = 1, irGain = 1,

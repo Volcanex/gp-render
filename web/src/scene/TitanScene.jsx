@@ -268,6 +268,11 @@ const FOG_NIGHT = new THREE.Color('#1a0d05')
 const FOG_DAY = new THREE.Color('#3a2210')
 
 export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
+  // walkable ground: CameraRig samples this so walk mode follows the terrain
+  useEffect(() => {
+    window.__groundFn = terrainHeight
+    return () => { if (window.__groundFn === terrainHeight) window.__groundFn = null }
+  }, [])
   const {
     visible = true, uv = false, ir = false,
     uvColor = '#aa33ff', irColor = '#ff5500',
@@ -415,7 +420,7 @@ export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
           roughness={0.25}
           mirror={0.6}
           blur={[200, 60]}
-          resolution={512}
+          resolution={256}
           mixBlur={0.8}
           mixStrength={1.5}
           depthScale={0.4}

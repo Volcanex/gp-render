@@ -133,8 +133,10 @@ function WalkControls({ focalLength }) {
     vy.current += GRAVITY * delta
     camera.position.y += vy.current * delta
 
-    if (camera.position.y <= EYE_HEIGHT) {
-      camera.position.y = EYE_HEIGHT
+    // scenes with uneven terrain publish a ground sampler; flat 0 otherwise
+    const groundY = (window.__groundFn ? window.__groundFn(camera.position.x, camera.position.z) : 0) + EYE_HEIGHT
+    if (camera.position.y <= groundY) {
+      camera.position.y = groundY
       vy.current = 0
       grounded.current = true
     }
@@ -151,16 +153,18 @@ function WalkControls({ focalLength }) {
   return <PointerLockControls makeDefault selector="canvas" />
 }
 
-export default function CameraRig({ mode, focalLength }) {
+export default function CameraRig({ mode, focalLength, sceneId }) {
   useFocalLength(focalLength)
   const { camera } = useThree()
 
-  // pointer-lock modes have no target: aim at the scene centre once on
-  // mount so every scene opens facing its subject (orbit does this itself)
+  // reset to the spawn point whenever the scene changes — carrying a walked
+  // position into a different scene's terrain can leave the camera
+  // underground (black frame, rays starting inside geometry)
   useEffect(() => {
+    camera.position.set(4, 2.5, 5)
     if (mode !== 'orbit') camera.lookAt(0, 1, 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [sceneId])
 
   if (mode === 'fly') return <FlyControls />
   if (mode === 'walk') return <WalkControls focalLength={focalLength} />

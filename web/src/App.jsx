@@ -59,7 +59,7 @@ export default function App() {
         {params.scene !== 'titan' ? (
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
       ) : null}
-        <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
+        <CameraRig mode={params.moveMode} focalLength={params.focalLength} sceneId={params.scene} />
         <Suspense fallback={null}>
           {params.scene === 'raymarch' ? (
             <RaymarchScene timeOfDay={params.timeOfDay} torch={torch} bands={{

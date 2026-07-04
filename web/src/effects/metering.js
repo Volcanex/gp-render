@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import { Pass } from 'postprocessing'
 
 const RT_SIZE = 16
-const TARGET_LUMA = 0.35
+const TARGET_LUMA = 0.18 // 18% grey: the DR lift + S-curve brighten further downstream
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;

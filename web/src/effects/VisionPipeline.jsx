@@ -30,8 +30,9 @@ const pickVec = new THREE.Vector3()
 export default function VisionPipeline({ params, clutTexture }) {
   const { camera, size, scene } = useThree()
 
-  // ambient occlusion: geometry scene only (the raymarcher computes its own)
-  const aoOn = params.ao && params.scene !== 'raymarch'
+  // ambient occlusion: geometry scene only (the raymarcher computes its own;
+  // titan's haze hides AO and already pays for reflector + volumetric fog)
+  const aoOn = params.ao && params.scene === 'geometry'
   const aoPass = useMemo(() => {
     if (!aoOn) return null
     const p = new N8AOPostPass(scene, camera, size.width, size.height)
