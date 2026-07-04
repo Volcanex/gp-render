@@ -25,8 +25,14 @@
 //   outline: bool        — depth+normal sobel outline overlay
 //   outlineStrength: float
 //   grainAnimated: bool  — re-seed grain per frame (sensor noise) vs frozen
-//   band: string         — 'visible' | 'uv' | 'ir'  (spectrum the sensor sees)
+//   band: string         — 'visible' | 'uv' | 'ir'  (spectrum the sensor sees;
+//                          geometry scene only — the raymarch scene ignores it)
 // }
+//
+// Global (not per-preset): `scene` — 'geometry' | 'raymarch', a top-level
+// control in ui/Controls.jsx choosing which scene the sensor looks at.
+// In rgb332 mode the quantised output is displayed through an editable
+// 256-entry CLUT (palette/clut.js + palette/PaletteEditor.jsx).
 
 export const PALETTES = {
   // id: array of hex stops, left = black, right = white; sampled as a 1D ramp

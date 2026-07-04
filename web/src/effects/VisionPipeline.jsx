@@ -18,7 +18,7 @@ import { getRampTexture } from './ramps.js'
 
 const euler = new THREE.Euler()
 
-export default function VisionPipeline({ params }) {
+export default function VisionPipeline({ params, clutTexture }) {
   const { camera, size } = useThree()
 
   const noise = useLoader(THREE.TextureLoader, '/textures/bluenoise128.png')
@@ -43,12 +43,13 @@ export default function VisionPipeline({ params }) {
     sensor.setParams(params)
     vision.setParams(params)
     vision.setRamp(ramp)
+    vision.setClut(clutTexture)
     outline.setParams(params)
     if (dof) {
       dof.bokehScale = 10 / params.fNumber
       dof.cocMaterial.uniforms.focusDistance.value = params.focusDistance
     }
-  }, [params, ramp, sensor, vision, outline, dof])
+  }, [params, ramp, sensor, vision, outline, dof, clutTexture])
 
   useFrame(() => {
     if (params.pinning === 'rotation') {

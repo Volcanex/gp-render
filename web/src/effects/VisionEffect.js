@@ -9,6 +9,7 @@ const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2 }
 const fragmentShader = /* glsl */ `
 uniform sampler2D uNoise;
 uniform sampler2D uRamp;
+uniform sampler2D uClut;
 uniform float uLevels;
 uniform int uDitherMode;
 uniform float uDitherScale;
@@ -73,8 +74,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     outputColor = vec4(q3, inputColor.a);
   } else if (uColorMode == 2) {
     vec3 n332 = vec3(7.0, 7.0, 3.0);
-    vec3 q3 = clamp(floor(color.rgb * n332 + t) / n332, 0.0, 1.0);
-    outputColor = vec4(q3, inputColor.a);
+    vec3 q3 = clamp(floor(color.rgb * n332 + t), vec3(0.0), n332);
+    float idx = q3.r * 32.0 + q3.g * 4.0 + q3.b;
+    outputColor = vec4(texture2D(uClut, vec2((idx + 0.5) / 256.0, 0.5)).rgb, inputColor.a);
   } else {
     float q = floor(lum * (uLevels - 1.0) + t) / (uLevels - 1.0);
     q = clamp(q, 0.0, 1.0);
@@ -89,6 +91,7 @@ export class VisionEffect extends Effect {
       uniforms: new Map([
         ['uNoise', new Uniform(noiseTexture)],
         ['uRamp', new Uniform(null)],
+        ['uClut', new Uniform(null)],
         ['uLevels', new Uniform(2)],
         ['uDitherMode', new Uniform(DITHER_MODES.bluenoise)],
         ['uDitherScale', new Uniform(1)],
@@ -111,6 +114,10 @@ export class VisionEffect extends Effect {
 
   setRamp(texture) {
     this.uniforms.get('uRamp').value = texture
+  }
+
+  setClut(texture) {
+    this.uniforms.get('uClut').value = texture
   }
 
   get ditherOffset() {

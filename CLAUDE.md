@@ -3,8 +3,16 @@
 **Owner:** Gabriel Penman
 
 Browser explorer for Titan-game vision-system rendering: blue-noise/Bayer
-dither, palettes, ISO grain, dither pinning. Vite+React Three.js frontend
-served by a tiny FastAPI app.
+dither, palettes, ISO grain, dither pinning, aperture/DOF, raymarched SDF
+scene. Vite+React Three.js frontend served by a tiny FastAPI app.
+
+Non-obvious architecture: in rgb332 colour mode the shader quantises into
+256 index slots which display through an editable CLUT texture
+(`web/src/palette/`) — hardware-palette style, identity by default, edited
+live via the in-page palette panel (localStorage + JSON import/export).
+The raymarched scene (`web/src/scene/RaymarchScene.jsx`) writes real
+window-space depth via gl_FragDepth so the DOF and outline passes work on
+it unchanged.
 
 ## Run
 ```

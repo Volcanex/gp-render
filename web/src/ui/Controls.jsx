@@ -3,12 +3,17 @@ import { useControls, folder } from 'leva'
 import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
 
 export function useSensorParams() {
-  const { sensor } = useControls({
+  const { sensor, scene } = useControls({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
         Object.entries(SENSOR_PRESETS).map(([id, preset]) => [preset.label, id])
       ),
+    },
+    scene: {
+      value: 'geometry',
+      options: ['geometry', 'raymarch'],
+      hint: 'band (uv/ir) only applies to the geometry scene',
     },
   })
 
@@ -46,5 +51,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, set])
 
-  return { sensor, ...values }
+  return { sensor, scene, ...values }
 }
