@@ -6,18 +6,20 @@
 // Also owns the Pope dither-pinning math: on 'rotation' pinning the dither
 // offset tracks camera yaw/pitch so the pattern sticks to the scene while
 // panning (offset = screenSize * rotation / fov).
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
-import { DepthOfFieldEffect } from 'postprocessing'
+import { DepthOfFieldEffect, DepthPickingPass } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
+import { AutofocusController } from './autofocus.js'
 import { getRampTexture } from './ramps.js'
 
 const euler = new THREE.Euler()
+const pickVec = new THREE.Vector3()
 
 export default function VisionPipeline({ params, clutTexture }) {
   const { camera, size } = useThree()
@@ -40,6 +42,16 @@ export default function VisionPipeline({ params, clutTexture }) {
     [params.dof, camera],
   )
 
+  // Autofocus: a depth-picking pass measures the true distance under the
+  // screen-centre crosshair; the AF controller turns it into the applied
+  // focus with per-sensor dynamics (instant / lazy / hunting).
+  const picker = useMemo(() => (params.dof ? new DepthPickingPass() : null), [params.dof])
+  const af = useMemo(() => new AutofocusController(), [])
+  const measured = useRef(null)
+  const reading = useRef(false)
+  useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
+  useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
+
   // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader —
   // it replaces VisionEffect in the chain when selected.
   const errorDiffusion = params.ditherMode === 'floyd' || params.ditherMode === 'atkinson'
@@ -59,15 +71,31 @@ export default function VisionPipeline({ params, clutTexture }) {
       edPass.setRamp(Array.from({ length: 256 }, (_, i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]))
       edPass.setClut(clutTexture.image.data)
     }
-    if (dof) {
-      dof.bokehScale = 10 / params.fNumber
-      dof.cocMaterial.focusDistance = params.focusDistance
-      // wide aperture = shallow in-focus band, stopped down = deep focus
-      dof.cocMaterial.focusRange = Math.max(0.5, params.focusDistance * params.fNumber * 0.08)
-    }
-  }, [params, ramp, sensor, vision, outline, dof, clutTexture])
+    if (dof) dof.bokehScale = 10 / params.fNumber
+  }, [params, ramp, sensor, vision, outline, dof, clutTexture, errorDiffusion, edPass])
 
-  useFrame(() => {
+  useFrame((state, delta) => {
+    if (dof) {
+      // sample crosshair depth (throttled async GPU readback)
+      if (picker && params.afMode !== 'manual' && !reading.current) {
+        reading.current = true
+        pickVec.set(0, 0, 0)
+        picker.readDepth(pickVec).then((d) => {
+          pickVec.set(0, 0, d * 2 - 1)
+          if (1 - pickVec.z > 1e-7) {
+            pickVec.unproject(camera)
+            measured.current = camera.position.distanceTo(pickVec)
+          } else {
+            measured.current = null
+          }
+          reading.current = false
+        }).catch(() => { reading.current = false })
+      }
+      af.update(delta, measured.current)
+      dof.cocMaterial.focusDistance = af.current
+      // wide aperture = shallow in-focus band, stopped down = deep focus
+      dof.cocMaterial.focusRange = Math.max(0.5, af.current * params.fNumber * 0.08)
+    }
     if (params.pinning === 'rotation') {
       euler.setFromQuaternion(camera.quaternion, 'YXZ')
       const vfov = THREE.MathUtils.degToRad(camera.fov)
@@ -83,6 +111,7 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   return (
     <EffectComposer depthBuffer multisampling={0}>
+      {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       <primitive object={sensor} />
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}

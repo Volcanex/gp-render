@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import TestScene from './scene/TestScene.jsx'
 import RaymarchScene from './scene/RaymarchScene.jsx'
+import CameraRig from './scene/CameraRig.jsx'
 import VisionPipeline from './effects/VisionPipeline.jsx'
 import PaletteEditor from './palette/PaletteEditor.jsx'
 import { useSensorParams } from './ui/Controls.jsx'
@@ -30,6 +31,7 @@ export default function App() {
         dpr={1}
       >
         <color attach="background" args={['#000000']} />
+        <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
             ? <RaymarchScene />

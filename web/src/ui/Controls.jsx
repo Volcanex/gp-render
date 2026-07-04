@@ -4,7 +4,7 @@ import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
 import { CLUT_PRESETS } from '../palette/clutPresets.js'
 
 export function useSensorParams() {
-  const { sensor, scene, textures } = useControls({
+  const { sensor, scene, textures, moveMode } = useControls({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
@@ -19,6 +19,11 @@ export function useSensorParams() {
     textures: {
       value: true,
       hint: 'procedural texturing in the geometry scene',
+    },
+    moveMode: {
+      value: 'orbit',
+      options: ['orbit', 'fly'],
+      hint: 'fly = WASD/QE + click canvas for mouse look, Esc to release',
     },
   })
 
@@ -37,6 +42,15 @@ export function useSensorParams() {
     Optics: folder({
       dof: { value: preset.dof },
       focusDistance: { value: preset.focusDistance, min: 1, max: 40, step: 0.5 },
+      focalLength: {
+        value: preset.focalLength, min: 18, max: 135, step: 1,
+        hint: 'lens mm — drives FOV',
+      },
+      afMode: {
+        value: preset.afMode,
+        options: ['manual', 'instant', 'lazy', 'hunting'],
+        hint: 'autofocus character; manual uses the focusDistance slider',
+      },
     }),
     Dither: folder({
       ditherMode: {
@@ -78,5 +92,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, set])
 
-  return { sensor, scene, textures, ...values }
+  return { sensor, scene, textures, moveMode, ...values }
 }

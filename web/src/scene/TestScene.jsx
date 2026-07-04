@@ -1,6 +1,5 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { makeTexture } from './textures.js'
 
@@ -136,8 +135,6 @@ export default function TestScene({ bands, textures = true }) {
 
   return (
     <>
-      <OrbitControls makeDefault enableDamping />
-
       {/* lighting — only the visible band illuminates the scene */}
       <ambientLight intensity={visible ? 0.15 : 0} color="#202030" />
       <directionalLight

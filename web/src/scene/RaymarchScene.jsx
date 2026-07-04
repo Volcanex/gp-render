@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
 const vertexShader = /* glsl */ `
@@ -246,10 +245,5 @@ export default function RaymarchScene() {
     material.uniforms.uTime.value = state.clock.getElapsedTime()
   })
 
-  return (
-    <>
-      <OrbitControls makeDefault enableDamping />
-      <mesh ref={meshRef} geometry={geometry} material={material} frustumCulled={false} />
-    </>
-  )
+  return <mesh ref={meshRef} geometry={geometry} material={material} frustumCulled={false} />
 }
