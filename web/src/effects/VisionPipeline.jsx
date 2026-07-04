@@ -51,6 +51,8 @@ export default function VisionPipeline({ params, clutTexture }) {
   const reading = useRef(false)
   useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
+  // debug hook: watch AF state from the console (window.__titanAF.current)
+  useEffect(() => { window.__titanAF = af }, [af])
 
   // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader —
   // it replaces VisionEffect in the chain when selected.
@@ -71,7 +73,8 @@ export default function VisionPipeline({ params, clutTexture }) {
       edPass.setRamp(Array.from({ length: 256 }, (_, i) => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]))
       edPass.setClut(clutTexture.image.data)
     }
-    if (dof) dof.bokehScale = 10 / params.fNumber
+    // max blur scales with aperture and lens length, like real glass
+    if (dof) dof.bokehScale = THREE.MathUtils.clamp((params.focalLength / 50) * (10 / params.fNumber), 0.5, 14)
   }, [params, ramp, sensor, vision, outline, dof, clutTexture, errorDiffusion, edPass])
 
   useFrame((state, delta) => {
@@ -93,8 +96,12 @@ export default function VisionPipeline({ params, clutTexture }) {
       }
       af.update(delta, measured.current)
       dof.cocMaterial.focusDistance = af.current
-      // wide aperture = shallow in-focus band, stopped down = deep focus
-      dof.cocMaterial.focusRange = Math.max(0.5, af.current * params.fNumber * 0.08)
+      // Thin-lens-ish falloff: the CoC shader saturates to full blur at
+      // focusRange, so focusRange must span most of the scene for blur to
+      // build gradually with distance instead of reading as a uniform blur
+      // with one sharp band. Depth of field ~ d^2 * N / f_mm^2.
+      const range = 110 * af.current * af.current * params.fNumber / (params.focalLength * params.focalLength)
+      dof.cocMaterial.focusRange = THREE.MathUtils.clamp(range, 1.5, 200)
     }
     if (params.pinning === 'rotation') {
       euler.setFromQuaternion(camera.quaternion, 'YXZ')
