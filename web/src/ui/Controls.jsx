@@ -86,12 +86,25 @@ export function useSensorParams() {
 
   const [values, set] = useControls(() => ({
     Exposure: folder({
+      exposureMode: {
+        value: preset.exposureMode ?? 'manual',
+        options: ['manual', 'auto-ev', 'auto-iso'],
+        hint: 'auto meters the scene and lags toward mid-grey; auto-iso raises ISO instead of EV, so low light gets grainy like a real camera',
+      },
       ev: { value: preset.ev, min: -4, max: 4, step: 0.1 },
       iso: { value: preset.iso, min: 100, max: 12800, step: 100 },
       fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
       dynamicRange: {
         value: preset.dynamicRange, min: 0, max: 12, step: 0.5,
         hint: 'stops; 0 = linear, higher lifts shadows',
+      },
+      whiteBalance: {
+        value: preset.whiteBalance ?? 6500, min: 2500, max: 10000, step: 100,
+        hint: 'colour temperature the sensor corrects for; 6500 = neutral daylight',
+      },
+      wbAuto: {
+        value: preset.wbAuto ?? false,
+        hint: 'gray-world auto white balance, lagged',
       },
     }),
     Optics: folder({

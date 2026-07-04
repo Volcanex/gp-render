@@ -17,6 +17,7 @@ import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
 import { SharpenEffect } from './SharpenEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
+import { MeteringPass, AutoExposureController } from './metering.js'
 import { attachPassTimers, markFrame } from '../perf/passTimers.js'
 import { getRampTexture } from './ramps.js'
 
@@ -54,6 +55,15 @@ export default function VisionPipeline({ params, clutTexture }) {
   const reading = useRef(false)
   const pickCooldown = useRef(0)
   const composerRef = useRef(null)
+
+  // Auto exposure / auto white balance: a tiny metering pass samples the
+  // pre-sensor image; the AE controller lags a correction toward mid-grey.
+  const meter = useMemo(() => new MeteringPass(), [])
+  useEffect(() => () => meter.dispose(), [meter])
+  const ae = useMemo(() => new AutoExposureController(), [])
+  useEffect(() => { ae.setMode(params.exposureMode) }, [ae, params.exposureMode])
+  const meterCooldown = useRef(0)
+  const autoWb = useRef(null)
   useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
   // debug hook: watch AF state from the console (window.__titanAF.current)
@@ -90,6 +100,31 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   useFrame((state, delta) => {
     markFrame()
+    const metering = params.exposureMode !== 'manual' || params.wbAuto
+    if (metering) {
+      meterCooldown.current -= delta
+      if (meterCooldown.current <= 0) {
+        meterCooldown.current = 0.15
+        meter.requestSample()
+      }
+      const s = meter.lastSample
+      ae.update(delta, s ? s.luma : null)
+      if (params.wbAuto && s) {
+        const avg = (s.r + s.g + s.b) / 3
+        const target = [s.r, s.g, s.b].map(c => Math.min(2, Math.max(0.5, avg / Math.max(c, 1e-3))))
+        const cur = autoWb.current || [1, 1, 1]
+        autoWb.current = cur.map((c, i) => c + (target[i] - c) * Math.min(1, delta * 2))
+      }
+    } else {
+      ae.update(delta, null)
+    }
+    // effective exposure: auto modes override ev or iso, sliders stay the base
+    const eff = { ...params }
+    if (params.exposureMode === 'auto-ev') eff.ev = params.ev + ae.stops
+    else if (params.exposureMode === 'auto-iso') eff.iso = ae.autoIso(params.iso)
+    sensor.setParams(eff)
+    sensor.setAutoWb(params.wbAuto ? autoWb.current : null)
+    vision.setParams(eff)
     if (dof) {
       // sample crosshair depth — throttled: the readback forces a GPU sync,
       // so doing it every frame costs real frame time
@@ -140,6 +175,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
+      <primitive object={meter} />
       <primitive object={sensor} />
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}
       <primitive object={outline} />
