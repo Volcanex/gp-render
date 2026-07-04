@@ -95,6 +95,25 @@ export class ErrorDiffusionPass extends Pass {
     this._outBuf = null
     this._errBuf = null
     this._outTexture = null
+
+    // Async PBO readback state (WebGL2). _pending means a readPixels is
+    // in flight with a fence guarding it; while true the previous frame's
+    // _outTexture keeps being displayed (one frame of latency, invisible
+    // at 60fps and in-character for a "cheap" simulated sensor).
+    this._gl = null
+    this._usePBO = false
+    this._pbo = null
+    this._sync = null
+    this._pending = false
+  }
+
+  initialize(renderer, alpha, frameBufferType) {
+    super.initialize(renderer, alpha, frameBufferType)
+    const gl = renderer.getContext()
+    this._gl = gl
+    // fenceSync/getBufferSubData are WebGL2-only; their absence is the
+    // signal to fall back to the old synchronous path, not a version check.
+    this._usePBO = typeof gl.fenceSync === 'function' && typeof gl.getBufferSubData === 'function'
   }
 
   setParams(params) {
@@ -145,6 +164,60 @@ export class ErrorDiffusionPass extends Pass {
     this._outTexture.minFilter = THREE.NearestFilter
     this._outTexture.magFilter = THREE.NearestFilter
     this._outTexture.generateMipmaps = false
+
+    // A resize invalidates any in-flight readback (wrong dimensions) —
+    // drop it rather than let it land in a wrongly-sized buffer.
+    const gl = this._gl
+    if (gl) {
+      if (this._sync) {
+        gl.deleteSync(this._sync)
+        this._sync = null
+      }
+      this._pending = false
+      if (this._pbo) {
+        gl.deleteBuffer(this._pbo)
+        this._pbo = null
+      }
+      if (this._usePBO) {
+        this._pbo = gl.createBuffer()
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+        gl.bufferData(gl.PIXEL_PACK_BUFFER, dsW * dsH * 4, gl.STREAM_READ)
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+      }
+    }
+  }
+
+  _downsample(renderer, inputBuffer) {
+    this._copyMaterial.uniforms.uTex.value = inputBuffer.texture
+    this.fullscreenMaterial = this._copyMaterial
+    renderer.setRenderTarget(this._smallRT)
+    renderer.render(this.scene, this.camera)
+  }
+
+  // Fires an async readPixels into the PBO and fences it; never blocks.
+  _kickReadPixels() {
+    const gl = this._gl
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+    gl.readPixels(0, 0, this._dsW, this._dsH, gl.RGBA, gl.UNSIGNED_BYTE, 0)
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+    this._sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+    gl.flush()
+    this._pending = true
+  }
+
+  // Non-blocking poll. Returns true (and pulls the data into _readBuf) only
+  // once the fence has actually signaled; false means keep waiting and the
+  // caller must leave the previous _outTexture on screen unchanged.
+  _resolvePending() {
+    const gl = this._gl
+    if (gl.getSyncParameter(this._sync, gl.SYNC_STATUS) !== gl.SIGNALED) return false
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this._pbo)
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, this._readBuf)
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null)
+    gl.deleteSync(this._sync)
+    this._sync = null
+    this._pending = false
+    return true
   }
 
   // Diffuses `amount` into the neighbours of (x, y) named by `kernel`,
@@ -231,26 +304,38 @@ export class ErrorDiffusionPass extends Pass {
       return
     }
 
-    // 1. downsample the full-res input into the small RT
-    this._copyMaterial.uniforms.uTex.value = inputBuffer.texture
-    this.fullscreenMaterial = this._copyMaterial
-    renderer.setRenderTarget(this._smallRT)
-    renderer.render(this.scene, this.camera)
-
-    // 2. read back (bottom-up rows, per WebGL/readRenderTargetPixels convention)
-    renderer.readRenderTargetPixels(this._smallRT, 0, 0, this._dsW, this._dsH, this._readBuf)
-
-    // 3. CPU error diffusion
-    this._diffuse()
-
-    // 4. upload — DataTexture defaults to flipY = false, i.e. row 0 of the
-    // buffer becomes texel row 0, and texel row 0 is also what a standard
-    // fullscreen quad samples at v = 0 (its "bottom"). Since our buffer's
-    // row 0 is *already* the bottom of the image (readRenderTargetPixels is
-    // bottom-up too), the two bottom-up conventions cancel out and the
-    // result is upright with no explicit flip anywhere in this pass. Do not
-    // "fix" this with a flip — that would flip it upside down.
-    this._outTexture.needsUpdate = true
+    // 1-4: get a diffused frame into _readBuf/_outTexture. Synchronous path
+    // (no WebGL2 fenceSync) does it all inline, zero added latency. The PBO
+    // path never blocks the pipeline: it pulls whatever readback the *last*
+    // frame kicked off (if the fence has signaled yet), diffuses that, then
+    // immediately kicks the next one — one frame of latency, steady state.
+    if (!this._usePBO) {
+      this._downsample(renderer, inputBuffer)
+      // read back (bottom-up rows, per WebGL/readRenderTargetPixels convention)
+      renderer.readRenderTargetPixels(this._smallRT, 0, 0, this._dsW, this._dsH, this._readBuf)
+      this._diffuse()
+      this._outTexture.needsUpdate = true
+    } else if (this._pending) {
+      if (this._resolvePending()) {
+        this._diffuse()
+        // upload — DataTexture defaults to flipY = false, i.e. row 0 of the
+        // buffer becomes texel row 0, and texel row 0 is also what a standard
+        // fullscreen quad samples at v = 0 (its "bottom"). Since our buffer's
+        // row 0 is *already* the bottom of the image (readPixels is bottom-up
+        // too), the two bottom-up conventions cancel out and the result is
+        // upright with no explicit flip anywhere in this pass. Do not "fix"
+        // this with a flip — that would flip it upside down.
+        this._outTexture.needsUpdate = true
+        this._downsample(renderer, inputBuffer)
+        this._kickReadPixels()
+      }
+      // else: fence hasn't signaled yet — leave last frame's _outTexture as is
+    } else {
+      // first active frame (or resuming after being out of the chain): kick
+      // the initial async readback, nothing to diffuse yet this frame
+      this._downsample(renderer, inputBuffer)
+      this._kickReadPixels()
+    }
 
     // 5. blit the dithered, chunky-pixel result back up to full res
     this._blitMaterial.uniforms.uTex.value = this._outTexture
@@ -260,6 +345,11 @@ export class ErrorDiffusionPass extends Pass {
   }
 
   dispose() {
+    const gl = this._gl
+    if (gl) {
+      if (this._sync) gl.deleteSync(this._sync)
+      if (this._pbo) gl.deleteBuffer(this._pbo)
+    }
     if (this._smallRT) this._smallRT.dispose()
     if (this._outTexture) this._outTexture.dispose()
     this._copyMaterial.dispose()

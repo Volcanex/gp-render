@@ -5,7 +5,7 @@ import { Effect } from 'postprocessing'
 
 const DITHER_MODES = {
   none: 0, bluenoise: 1, bayer8: 2, white: 3,
-  bayer4: 4, ign: 5, halftone: 6, lines: 7,
+  bayer4: 4, ign: 5, halftone: 6, lines: 7, edapprox: 8,
 }
 const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2 }
 
@@ -52,10 +52,20 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec4 color = uPixelSize > 1.0 ? texture2D(inputBuffer, sampleUv) : inputColor;
   vec2 fragCoord = sampleUv * resolution;
 
+  if (uDitherMode == 8) {
+    vec2 stepUv = uPixelSize > 1.0 ? uPixelSize * texelSize : texelSize;
+    vec3 n = texture2D(inputBuffer, sampleUv + vec2(0.0, stepUv.y)).rgb;
+    vec3 s = texture2D(inputBuffer, sampleUv - vec2(0.0, stepUv.y)).rgb;
+    vec3 e = texture2D(inputBuffer, sampleUv + vec2(stepUv.x, 0.0)).rgb;
+    vec3 w = texture2D(inputBuffer, sampleUv - vec2(stepUv.x, 0.0)).rgb;
+    vec3 blur = (n + s + e + w) * 0.25;
+    color.rgb = clamp(color.rgb + (color.rgb - blur) * 0.9, 0.0, 1.5);
+  }
+
   float lum = dot(vec3(0.2126, 0.7152, 0.0722), color.rgb);
 
   float t;
-  if (uDitherMode == 1) {
+  if (uDitherMode == 1 || uDitherMode == 8) {
     vec2 noiseUv = (fragCoord / uDitherScale + uDitherOffset) / 128.0;
     t = texture2D(uNoise, noiseUv).r;
   } else if (uDitherMode == 2) {

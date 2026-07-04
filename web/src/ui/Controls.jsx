@@ -123,7 +123,7 @@ export function useSensorParams() {
     Dither: folder({
       ditherMode: {
         value: preset.ditherMode,
-        options: ['bluenoise', 'floyd', 'atkinson', 'bayer8', 'bayer4', 'ign', 'halftone', 'lines', 'white', 'none'],
+        options: ['bluenoise', 'floyd', 'atkinson', 'edapprox', 'bayer8', 'bayer4', 'ign', 'halftone', 'lines', 'white', 'none'],
       },
       levels: { value: preset.levels, min: 2, max: 16, step: 1 },
       ditherScale: { value: preset.ditherScale, min: 1, max: 8, step: 1 },
