@@ -28,6 +28,11 @@ uniform vec3 uAmbientColor;
 uniform vec3 uSkyHorizon;
 uniform vec3 uSkyZenith;
 uniform float uDayFactor;
+uniform float uSeeVis;
+uniform float uSeeUv;
+uniform float uSeeIr;
+uniform vec3 uUvColor;
+uniform vec3 uIrColor;
 
 in vec3 vRayDir;
 layout(location = 0) out vec4 fragColor;
@@ -251,6 +256,45 @@ vec3 shadeAlbedo(float matId, vec3 p) {
   return vec3(0.42, 0.41, 0.4);
 }
 
+// spectrum-band glow, added on top of lit shading so it survives visible=false
+// (a sensor blind to visible light still reads heat/UV markings)
+vec3 spectrumEmission(float matId, vec3 p) {
+  vec3 e = vec3(0.0);
+
+  if (uSeeIr > 0.5) {
+    // temperature per material: organism is alive and hot, asteroid mildly
+    // warm, terrain carries faint residual warmth in patches (reuses the
+    // terrain noise already computed for the heightfield — no extra taps),
+    // columns/carve are cold and contribute nothing
+    float heat = 0.0;
+    if (matId < 0.5) heat = smoothstep(0.6, 0.9, fbm2(p.xz * 0.15)) * 0.15;
+    else if (matId < 1.5) heat = 1.0;
+    else if (matId < 3.5 && matId > 2.5) heat = 0.35;
+    e += uIrColor * heat;
+  }
+
+  if (uSeeUv > 0.5) {
+    if (matId > 3.5) {
+      // rune rings: a threshold on the column's cell hash marks it as
+      // inscribed, then a height band on that column glows
+      vec2 cell = floor(p.xz / 2.2 + 0.5);
+      float rune = hash21(cell + 7.7);
+      if (rune > 0.6) {
+        float band = fract(p.y * 1.5);
+        float glow = smoothstep(0.42, 0.5, band) * (1.0 - smoothstep(0.5, 0.58, band));
+        e += uUvColor * glow * 1.5;
+      }
+    }
+    if (matId < 0.5) {
+      // large ring inscribed on the terrain, off-centre — pure distance test
+      float ringDist = abs(length(p.xz - vec2(4.0, -3.5)) - 3.0);
+      e += uUvColor * smoothstep(0.12, 0.0, ringDist) * 1.2;
+    }
+  }
+
+  return e;
+}
+
 // gradient sky (horizon glow -> dark zenith) + sun disc + fbm cloud band,
 // all keyed off uSunDir/uSunColor/uSkyHorizon/uSkyZenith — the time-of-day
 // trig runs once per frame on the JS side (computeSunState below), not here.
@@ -293,7 +337,9 @@ void main() {
   }
 
   if (matId < 0.0 || t > MAX_DIST) {
-    fragColor = vec4(skyColor(rd), 1.0);
+    // a sensor blind to visible light receives zero visible light — no sky glow
+    vec3 miss = uSeeVis > 0.5 ? skyColor(rd) : vec3(0.0);
+    fragColor = vec4(miss, 1.0);
     gl_FragDepth = 1.0;
     return;
   }
@@ -304,15 +350,20 @@ void main() {
   float shadow = softShadow(p + n * 0.02, lightDir, 0.02, 8.0, 16.0);
 
   vec3 albedo = shadeAlbedo(matId, p);
-  // sun below the horizon fades uSunColor toward black, so direct light
-  // switches off on its own without a separate day/night branch here
-  vec3 color = albedo * (uAmbientColor * ao + uSunColor * diff * shadow);
+  // visible=false means zero visible light reaches the sensor — the world
+  // then reads only through whatever spectrum bands (IR/UV) are enabled
+  vec3 lit = uSeeVis > 0.5
+    ? albedo * (uAmbientColor * ao + uSunColor * diff * shadow)
+    : vec3(0.0);
+  vec3 color = lit + spectrumEmission(matId, p);
 
   // fog targets the flat horizon tone (not the direction-dependent sky/cloud
   // gradient) and at lower density than before, so mid-field keeps contrast
-  // instead of washing into the sky well before the far plane
+  // instead of washing into the sky well before the far plane. Mixing here
+  // (after emission is added) fades the glow with distance too, for free.
+  vec3 fogTarget = uSeeVis > 0.5 ? uSkyHorizon : vec3(0.0);
   float fog = 1.0 - exp(-0.012 * t);
-  color = mix(color, uSkyHorizon, fog);
+  color = mix(color, fogTarget, fog);
 
   fragColor = vec4(color, 1.0);
 
@@ -358,7 +409,8 @@ function computeSunState(timeOfDay) {
   return { dir, sunColor, ambientColor, skyHorizon, skyZenith, day }
 }
 
-export default function RaymarchScene({ timeOfDay = 14 }) {
+export default function RaymarchScene({ timeOfDay = 14, bands = {} }) {
+  const { visible = true, uv = false, ir = false, uvColor = '#9040ff', irColor = '#ff5020' } = bands
   const meshRef = useRef()
 
   const geometry = useMemo(() => {
@@ -387,9 +439,22 @@ export default function RaymarchScene({ timeOfDay = 14 }) {
         uSkyHorizon: { value: new THREE.Vector3(0.35, 0.45, 0.6) },
         uSkyZenith: { value: new THREE.Vector3(0.28, 0.48, 0.72) },
         uDayFactor: { value: 1 },
+        uSeeVis: { value: 1 },
+        uSeeUv: { value: 0 },
+        uSeeIr: { value: 0 },
+        uUvColor: { value: new THREE.Color(uvColor) },
+        uIrColor: { value: new THREE.Color(irColor) },
       },
     })
   }, [])
+
+  useEffect(() => {
+    material.uniforms.uSeeVis.value = visible ? 1 : 0
+    material.uniforms.uSeeUv.value = uv ? 1 : 0
+    material.uniforms.uSeeIr.value = ir ? 1 : 0
+    material.uniforms.uUvColor.value.set(uvColor)
+    material.uniforms.uIrColor.value.set(irColor)
+  }, [visible, uv, ir, uvColor, irColor, material])
 
   useEffect(() => {
     const s = computeSunState(timeOfDay)

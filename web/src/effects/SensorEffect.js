@@ -19,7 +19,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain * uIsoGain;
 
   if (uDynRange > 0.0) {
-    c = clamp((log2(max(c, vec3(1e-6))) + uDynRange) / uDynRange, 0.0, 1.0);
+    float luma = dot(vec3(0.2126, 0.7152, 0.0722), c);
+    float lifted = clamp((log2(max(luma, 1e-6)) + uDynRange) / uDynRange, 0.0, 1.0);
+    c *= lifted / max(luma, 1e-6);
   }
 
   float seed = uAnimated ? time : 0.0;

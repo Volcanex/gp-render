@@ -86,10 +86,10 @@ export const PALETTES = {
 
 export const SENSOR_PRESETS = {
   mk1: {
-    label: 'MK-1 Optic (stock)',
-    ev: -2.0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'instant',
-    dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
-    colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
+    label: 'MK-1 Optic (flagship)',
+    ev: 0, iso: 100, fNumber: 4, dof: true, focusDistance: 8, focalLength: 35, afMode: 'instant',
+    dynamicRange: 10, grain: true, grainAnimated: true, isoAgitation: false,
+    colorMode: 'rgb', levels: 16, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
     outline: false, outlineStrength: 1,
     seeVisible: true, seeUv: false, seeIr: false,

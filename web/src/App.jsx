@@ -46,7 +46,10 @@ export default function App() {
         <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
-            ? <RaymarchScene timeOfDay={params.timeOfDay} />
+            ? <RaymarchScene timeOfDay={params.timeOfDay} bands={{
+                visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
+                uvColor: params.uvColor, irColor: params.irColor,
+              }} />
             : <TestScene textures={params.textures} timeOfDay={params.timeOfDay} bands={{
                 visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
                 uvColor: params.uvColor, irColor: params.irColor,
