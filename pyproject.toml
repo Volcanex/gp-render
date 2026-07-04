@@ -1,0 +1,11 @@
+[project]
+name = "titan"
+version = "0.1.0"
+description = "Dithered vision-system explorer"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+]
+
+[tool.gcore]
+depends = []
