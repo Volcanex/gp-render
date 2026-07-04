@@ -59,7 +59,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   // hoisted out of the loop: constant across steps
   float densityStep = uDensity * stepLen;
-  vec3 ambientTerm = uFogColor * densityStep * 0.6;
+  vec3 ambientTerm = uFogColor * densityStep * 0.25;
 
   vec3 pos = camPos + rayDir * jitter;
   for (int i = 0; i < STEPS; i++) {

@@ -44,9 +44,20 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain * uIsoGain;
   c *= uWbGains;
 
+  // uDynRange = stops BELOW 18% mid-grey the sensor can see into (shadow
+  // latitude); highlights always get a fixed 3-stop shoulder above mid-grey,
+  // so a subject a couple of stops under white lands near mid-grey on a
+  // high-DR sensor instead of pinning near-white.
   if (uDynRange > 0.0) {
+    const float MID_IN = 0.18;
+    const float MID_OUT = 0.38;
+    const float HEADROOM = 3.0;
     float luma = dot(vec3(0.2126, 0.7152, 0.0722), c);
-    float lifted = clamp((log2(max(luma, 1e-6)) + uDynRange) / uDynRange, 0.0, 1.0);
+    float stops = log2(max(luma, 1e-6) / MID_IN);
+    float lifted = stops >= 0.0
+      ? MID_OUT + (1.0 - MID_OUT) * min(stops / HEADROOM, 1.0)
+      : MID_OUT + MID_OUT * max(stops / uDynRange, -1.0);
+    lifted = clamp(lifted, 0.0, 1.0);
     c *= lifted / max(luma, 1e-6);
   }
 
