@@ -89,7 +89,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (params.scene !== 'titan') return null
     const fx = new VolumetricFogEffect()
     fx.setLights(TITAN_LAMPS)
-    fx.setParams({ density: 0.010, fogColor: '#2a1608', enabled: false })
+    fx.setParams({ density: 0.010, fogColor: '#2a1608', enabled: true })
     return fx
   }, [params.scene])
   useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])

@@ -37,21 +37,18 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     return;
   }
 
-  // Reconstruct the world-space point the depth buffer sees at this pixel.
-  // The camera ray for a given uv is fixed regardless of depth, so unprojecting
-  // the actual sampled depth gives both the surface point *and* a point on the
-  // exact view ray in one shot — no separate direction reconstruction needed.
+  // Reconstruct the view ray depth-free (unprojecting the sampled depth
+  // directly blows up to inf/NaN as w->0 near the far plane), then get the
+  // march distance from the linearised depth via getViewZ — the same
+  // approach the outline effect uses.
   float depth = readDepth(uv);
-  vec3 ndc = vec3(uv * 2.0 - 1.0, depth * 2.0 - 1.0);
-  vec4 viewPos = uProjInv * vec4(ndc, 1.0);
-  viewPos /= viewPos.w;
-  vec4 worldPos4 = uCamWorld * viewPos;
-  vec3 worldPos = worldPos4.xyz;
-
+  vec4 vf = uProjInv * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+  vec3 viewRay = vf.xyz / vf.w;
+  viewRay /= -viewRay.z;                    // scale so view z = -1
+  float viewZ = getViewZ(depth);            // negative view-space depth
+  float rayLen = min(length(viewRay * (-viewZ)), 80.0);
+  vec3 rayDir = normalize((uCamWorld * vec4(viewRay, 0.0)).xyz);
   vec3 camPos = uCamWorld[3].xyz;
-  vec3 toSurface = worldPos - camPos;
-  float rayLen = min(length(toSurface), 80.0);
-  vec3 rayDir = toSurface / max(rayLen, 1e-5);
 
   const int STEPS = 24; // steps * lights is the perf budget — tune these two knobs first
   float stepLen = rayLen / float(STEPS);
@@ -81,6 +78,12 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
     accum += ambientTerm * transmittance;
     pos += rayDir * stepLen;
+  }
+
+  // debug view: uEnabled == 2 shows reconstructed ray length as grayscale
+  if (uEnabled > 1.5) {
+    outputColor = vec4(vec3(rayLen / 80.0), 1.0);
+    return;
   }
 
   outputColor = vec4(inputColor.rgb * transmittance + accum, inputColor.a);
