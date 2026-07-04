@@ -15,9 +15,11 @@ import { applyClutPreset } from './palette/clutPresets.js'
 function skyColor(t) {
   const day = Math.max(0, Math.sin(((t - 6) / 12) * Math.PI))
   const dusk = Math.max(0, 1 - Math.abs(day - 0.15) * 6)
-  const r = 0.02 + day * 0.32 + dusk * 0.45
-  const g = 0.03 + day * 0.45 + dusk * 0.2
-  const b = 0.06 + day * 0.62 + dusk * 0.12
+  // night floor must be near-zero: a real night sky is orders of magnitude
+  // darker than lit objects, so even +6 stops of auto-ISO keeps it dark
+  const r = 0.0015 + day * 0.34 + dusk * 0.45
+  const g = 0.002 + day * 0.47 + dusk * 0.2
+  const b = 0.004 + day * 0.67 + dusk * 0.12
   return [r, g, b]
 }
 

@@ -416,12 +416,14 @@ function computeSunState(timeOfDay) {
 
   // day tones sit near luminance ~0.5 (mid-grey), not bright white-blue —
   // the post chain's exposure + shadow-lift pushes brightness up further
+  // night sky must be near-zero: real night sky is orders of magnitude
+  // darker than lit surfaces, so auto-ISO gain can't push it to white
   const skyHorizon = new THREE.Vector3(0.35, 0.45, 0.6)
     .lerp(new THREE.Vector3(0.85, 0.45, 0.25), lowSun)
-    .lerp(new THREE.Vector3(0.03, 0.05, 0.12), night)
+    .lerp(new THREE.Vector3(0.003, 0.005, 0.012), night)
 
   const skyZenith = new THREE.Vector3(0.28, 0.48, 0.72)
-    .lerp(new THREE.Vector3(0.01, 0.015, 0.04), night)
+    .lerp(new THREE.Vector3(0.001, 0.0015, 0.004), night)
 
   return { dir, sunColor, ambientColor, skyHorizon, skyZenith, day }
 }
