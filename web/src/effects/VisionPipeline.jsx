@@ -104,7 +104,8 @@ export default function VisionPipeline({ params, clutTexture }) {
             pickVec.unproject(camera)
             measured.current = camera.position.distanceTo(pickVec)
           } else {
-            measured.current = null
+            // sky/far-plane: rack to infinity like a real lens, don't hold
+            measured.current = 60
           }
           reading.current = false
           picker.enabled = false
