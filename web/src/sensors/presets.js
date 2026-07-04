@@ -6,7 +6,9 @@
 // Param shape (all effects read from this):
 // {
 //   ev: float            — exposure compensation, applied as color *= 2^ev (pre-quantise)
-//   iso: float           — 100..12800; drives grain amplitude AND dither agitation
+//   iso: float           — 100..12800; real sensor gain: brightness x iso/100
+//                          (one stop per doubling), plus grain amplitude and
+//                          optional dither agitation
 //   fNumber: float       — aperture, 1.4..16; exposure gain = (5.6/f)^2 relative to
 //                          f/5.6, and drives DOF bokeh + focus range when dof is on
 //   dof: bool            — depth-of-field pass
@@ -51,9 +53,10 @@
 //   irColor: string      — hex colour assigned to the IR band
 // }
 //
-// Global (not per-preset): `scene` — 'geometry' | 'raymarch' — and
-// `moveMode` — 'orbit' | 'fly' (WASD/QE noclip with pointer-lock mouse look),
-// both top-level controls in ui/Controls.jsx.
+// Global (not per-preset), all top-level in ui/Controls.jsx: `scene`
+// ('geometry'|'raymarch'), `moveMode` ('orbit'|'fly'|'walk'), `textures`,
+// `perf`, `timeOfDay` (0..24 sun for both scenes), `renderScale` (internal
+// render resolution), `upscaler` ('pixelated'|'smooth'), `sharpen` (RCAS).
 // In rgb332 mode the quantised output is displayed through an editable
 // 256-entry CLUT (palette/clut.js + palette/PaletteEditor.jsx).
 
@@ -84,7 +87,7 @@ export const PALETTES = {
 export const SENSOR_PRESETS = {
   mk1: {
     label: 'MK-1 Optic (stock)',
-    ev: 0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'instant',
+    ev: -2.0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'instant',
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -94,7 +97,7 @@ export const SENSOR_PRESETS = {
   },
   cine: {
     label: 'Cine Gate (shallow)',
-    ev: -3, iso: 200, fNumber: 1.8, dof: true, focusDistance: 8, focalLength: 50, afMode: 'lazy',
+    ev: -4.0, iso: 200, fNumber: 1.8, dof: true, focusDistance: 8, focalLength: 50, afMode: 'lazy',
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb', levels: 8, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -104,7 +107,7 @@ export const SENSOR_PRESETS = {
   },
   monastic: {
     label: 'Monastic (1-bit)',
-    ev: 0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'manual',
+    ev: -2.0, iso: 400, fNumber: 5.6, dof: false, focusDistance: 8, focalLength: 32, afMode: 'manual',
     dynamicRange: 4, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -114,7 +117,7 @@ export const SENSOR_PRESETS = {
   },
   salvage: {
     label: 'Salvage CCD (cheap)',
-    ev: -0.5, iso: 1600, fNumber: 8, dof: false, focusDistance: 8, focalLength: 28, afMode: 'hunting',
+    ev: -4.5, iso: 1600, fNumber: 8, dof: false, focusDistance: 8, focalLength: 28, afMode: 'hunting',
     dynamicRange: 0, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'rgb', levels: 3, ditherMode: 'white', ditherScale: 2,
     pinning: 'off', palette: 'mono', pixelSize: 3, clutPreset: 'identity',
@@ -124,7 +127,7 @@ export const SENSOR_PRESETS = {
   },
   bayerCorp: {
     label: 'Ordnance Grid (bayer)',
-    ev: 0, iso: 200, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
+    ev: -1.0, iso: 200, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
     dynamicRange: 5, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'rgb', levels: 4, ditherMode: 'bayer8', ditherScale: 1,
     pinning: 'rotation', palette: 'phosphor', pixelSize: 2, clutPreset: 'identity',
@@ -134,7 +137,7 @@ export const SENSOR_PRESETS = {
   },
   uvscope: {
     label: 'UV Scope',
-    ev: 1, iso: 800, fNumber: 2.8, dof: false, focusDistance: 8, focalLength: 24, afMode: 'instant',
+    ev: -2.0, iso: 800, fNumber: 2.8, dof: false, focusDistance: 8, focalLength: 24, afMode: 'instant',
     dynamicRange: 7, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'ramp', levels: 3, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'uvviolet', pixelSize: 2, clutPreset: 'identity',
@@ -144,7 +147,7 @@ export const SENSOR_PRESETS = {
   },
   irscope: {
     label: 'IR Thermal',
-    ev: 0, iso: 3200, fNumber: 2, dof: false, focusDistance: 8, focalLength: 60, afMode: 'lazy',
+    ev: -5.0, iso: 3200, fNumber: 2, dof: false, focusDistance: 8, focalLength: 60, afMode: 'lazy',
     dynamicRange: 6, grain: true, grainAnimated: true, isoAgitation: true,
     colorMode: 'ramp', levels: 8, ditherMode: 'bluenoise', ditherScale: 2,
     pinning: 'off', palette: 'irheat', pixelSize: 4, clutPreset: 'identity',
@@ -154,7 +157,7 @@ export const SENSOR_PRESETS = {
   },
   fullspectrum: {
     label: 'Full Spectrum (vis+uv+ir)',
-    ev: 0, iso: 800, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
+    ev: -3.0, iso: 800, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'instant',
     dynamicRange: 5, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb332', levels: 2, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'paper', pixelSize: 1, clutPreset: 'identity',
@@ -164,7 +167,7 @@ export const SENSOR_PRESETS = {
   },
   handheld: {
     label: 'Handheld (gameboy)',
-    ev: 0, iso: 100, fNumber: 11, dof: false, focusDistance: 8, focalLength: 26, afMode: 'manual',
+    ev: 0.0, iso: 100, fNumber: 11, dof: false, focusDistance: 8, focalLength: 26, afMode: 'manual',
     dynamicRange: 3, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'ramp', levels: 4, ditherMode: 'bayer8', ditherScale: 2,
     pinning: 'off', palette: 'gameboy', pixelSize: 4, clutPreset: 'identity',

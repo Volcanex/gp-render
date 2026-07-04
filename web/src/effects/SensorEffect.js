@@ -6,6 +6,7 @@ import { Uniform } from 'three'
 const fragmentShader = `
 uniform float uEv;
 uniform float uApertureGain;
+uniform float uIsoGain;
 uniform float uDynRange;
 uniform float uGrainAmount;
 uniform bool uAnimated;
@@ -15,7 +16,7 @@ float hash(vec2 p, float seed) {
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain;
+  vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain * uIsoGain;
 
   if (uDynRange > 0.0) {
     c = clamp((log2(max(c, vec3(1e-6))) + uDynRange) / uDynRange, 0.0, 1.0);
@@ -38,6 +39,7 @@ export class SensorEffect extends Effect {
       uniforms: new Map([
         ['uEv', new Uniform(0)],
         ['uApertureGain', new Uniform(1)],
+        ['uIsoGain', new Uniform(1)],
         ['uDynRange', new Uniform(0)],
         ['uGrainAmount', new Uniform(0)],
         ['uAnimated', new Uniform(true)],
@@ -49,6 +51,7 @@ export class SensorEffect extends Effect {
     this.uniforms.get('uEv').value = params.ev
     const f = Math.max(1, params.fNumber || 5.6)
     this.uniforms.get('uApertureGain').value = (5.6 / f) ** 2
+    this.uniforms.get('uIsoGain').value = params.iso / 100
     this.uniforms.get('uDynRange').value = params.dynamicRange || 0
     this.uniforms.get('uGrainAmount').value = params.grain ? 0.35 * (params.iso - 100) / 12700 : 0
     this.uniforms.get('uAnimated').value = !!params.grainAnimated

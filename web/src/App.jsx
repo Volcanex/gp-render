@@ -10,6 +10,16 @@ import PerfHud from './perf/PerfHud.jsx'
 import { identity332, makeClutTexture } from './palette/clut.js'
 import { applyClutPreset } from './palette/clutPresets.js'
 
+// sky colour for the geometry scene tracks the sun; raymarch draws its own sky
+function skyColor(t) {
+  const day = Math.max(0, Math.sin(((t - 6) / 12) * Math.PI))
+  const dusk = Math.max(0, 1 - Math.abs(day - 0.15) * 6)
+  const r = 0.02 + day * 0.32 + dusk * 0.45
+  const g = 0.03 + day * 0.45 + dusk * 0.2
+  const b = 0.06 + day * 0.62 + dusk * 0.12
+  return [r, g, b]
+}
+
 export default function App() {
   const params = useSensorParams()
   // One CLUT for the session: PaletteEditor mutates the array in place and
@@ -27,16 +37,17 @@ export default function App() {
   return (
     <>
       <Canvas
+        className={params.upscaler === 'smooth' ? 'upscale-smooth' : undefined}
         gl={{ powerPreference: 'high-performance', antialias: false, stencil: false, depth: false }}
         camera={{ position: [4, 2.5, 5], fov: 60 }}
-        dpr={1}
+        dpr={params.renderScale}
       >
-        <color attach="background" args={['#000000']} />
+        <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
         <CameraRig mode={params.moveMode} focalLength={params.focalLength} />
         <Suspense fallback={null}>
           {params.scene === 'raymarch'
-            ? <RaymarchScene />
-            : <TestScene textures={params.textures} bands={{
+            ? <RaymarchScene timeOfDay={params.timeOfDay} />
+            : <TestScene textures={params.textures} timeOfDay={params.timeOfDay} bands={{
                 visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
                 uvColor: params.uvColor, irColor: params.irColor,
               }} />}

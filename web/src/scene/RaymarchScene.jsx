@@ -22,7 +22,12 @@ precision highp float;
 uniform float uProjA;
 uniform float uProjB;
 uniform float uTime;
-uniform vec3 uBackground;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+uniform vec3 uAmbientColor;
+uniform vec3 uSkyHorizon;
+uniform vec3 uSkyZenith;
+uniform float uDayFactor;
 
 in vec3 vRayDir;
 layout(location = 0) out vec4 fragColor;
@@ -33,6 +38,10 @@ layout(location = 0) out vec4 fragColor;
 float smin(float a, float b, float k) {
   float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
   return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+float smax(float a, float b, float k) {
+  return -smin(-a, -b, k);
 }
 
 float sdSphere(vec3 p, float r) {
@@ -49,52 +58,137 @@ float sdTorus(vec3 p, vec2 t) {
   return length(q) - t.y;
 }
 
-float sdPlaneY(vec3 p) {
-  return p.y;
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453123);
 }
 
-// checkerboard albedo on the ground, ~1m squares, two greys
+float hash3(vec3 p) {
+  p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+// cheap 2D value noise for terrain / clouds — bilinear on a hashed lattice
+float noise2D(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+float fbm2(vec2 p) {
+  float f = 0.0;
+  float amp = 0.55;
+  for (int i = 0; i < 3; i++) {
+    f += amp * noise2D(p);
+    p *= 2.05;
+    amp *= 0.5;
+  }
+  return f;
+}
+
+// trilinear 3D value noise — only sampled where an object's cheap bounding
+// distance already gates it, so the 8 hash3 taps stay off the hot path
+float noise3D(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n000 = hash3(i);
+  float n100 = hash3(i + vec3(1.0, 0.0, 0.0));
+  float n010 = hash3(i + vec3(0.0, 1.0, 0.0));
+  float n110 = hash3(i + vec3(1.0, 1.0, 0.0));
+  float n001 = hash3(i + vec3(0.0, 0.0, 1.0));
+  float n101 = hash3(i + vec3(1.0, 0.0, 1.0));
+  float n011 = hash3(i + vec3(0.0, 1.0, 1.0));
+  float n111 = hash3(i + vec3(1.0, 1.0, 1.0));
+  float nx00 = mix(n000, n100, f.x);
+  float nx10 = mix(n010, n110, f.x);
+  float nx01 = mix(n001, n101, f.x);
+  float nx11 = mix(n011, n111, f.x);
+  float nxy0 = mix(nx00, nx10, f.y);
+  float nxy1 = mix(nx01, nx11, f.y);
+  return mix(nxy0, nxy1, f.z);
+}
+
+float fbm3(vec3 p) {
+  float f = 0.0;
+  float amp = 0.6;
+  for (int i = 0; i < 2; i++) {
+    f += amp * (noise3D(p) - 0.5);
+    p *= 2.1;
+    amp *= 0.5;
+  }
+  return f;
+}
+
+// checkerboard albedo, ~1m squares, two mid greys (kept off pure white/black
+// so the post chain's exposure + shadow-lift lands near mid-grey, not washed)
 vec3 groundColor(vec3 p) {
   vec2 c = floor(p.xz);
   float check = mod(c.x + c.y, 2.0);
-  return mix(vec3(0.25), vec3(0.42), check);
+  return mix(vec3(0.35), vec3(0.55), check);
 }
 
-vec2 opRep(vec2 p, float spacing, float count) {
-  float halfCount = (count - 1.0) * 0.5;
-  float i = clamp(round(p.x / spacing), -halfCount, halfCount);
-  p.x -= spacing * i;
-  return p;
-}
-
-// returns (distance, material id)
+// returns (distance, material id) — every branch below is gated by a cheap
+// bounding-sphere/box test so the expensive noise/loop work only runs for
+// rays actually near that object, keeping the 112-step march affordable
 vec2 map(vec3 p) {
-  float dGround = sdPlaneY(p);
+  // rolling terrain: heightfield SDF approximation (2-3 octave value noise,
+  // low frequency/amplitude keeps slopes gentle so the approximation holds)
+  float terrainH = fbm2(p.xz * 0.15) * 1.5 - 0.4;
+  float d = p.y - terrainH;
   float mat = 0.0;
-  float d = dGround;
 
-  // three blobs, smooth-unioned, bobbing/orbiting near the origin
-  vec3 b0 = vec3(0.6 * cos(uTime * 0.3), 1.2 + 0.15 * sin(uTime * 0.4), 0.6 * sin(uTime * 0.3));
-  vec3 b1 = vec3(0.7 * cos(uTime * 0.22 + 2.1), 1.35 + 0.12 * sin(uTime * 0.5 + 1.0), 0.7 * sin(uTime * 0.22 + 2.1));
-  vec3 b2 = vec3(0.5 * cos(uTime * 0.35 + 4.2), 1.05 + 0.18 * sin(uTime * 0.28 + 2.5), 0.5 * sin(uTime * 0.35 + 4.2));
-  float dBlobs = sdSphere(p - b0, 0.5);
-  dBlobs = smin(dBlobs, sdSphere(p - b1, 0.42), 0.6);
-  dBlobs = smin(dBlobs, sdSphere(p - b2, 0.46), 0.6);
-  if (dBlobs < d) { d = dBlobs; mat = 1.0; }
+  // THE organism: 6 spheres orbiting/pulsing into one smooth-union blob —
+  // constantly splitting and merging, the thing pure geometry can't do
+  vec3 orgCenter = vec3(0.0, 1.7, 0.0);
+  float boundOrg = length(p - orgCenter) - 1.35;
+  if (boundOrg < d) {
+    float dOrg = 1e5;
+    for (int i = 0; i < 6; i++) {
+      float fi = float(i);
+      float ang = uTime * 0.35 + fi * 2.094;
+      float orbitR = 0.55 + 0.15 * sin(uTime * 0.5 + fi);
+      vec3 off = vec3(cos(ang) * orbitR, sin(uTime * 0.6 + fi * 1.3) * 0.35, sin(ang) * orbitR);
+      float r = 0.42 + 0.08 * sin(uTime * 1.4 + fi * 1.7);
+      dOrg = smin(dOrg, sdSphere(p - orgCenter - off, r), 0.8);
+    }
+    if (dOrg < d) { d = dOrg; mat = 1.0; }
+  }
 
-  // sharp box
-  float dBox = sdBox(p - vec3(-1.6, 0.5, 0.8), vec3(0.5));
-  if (dBox < d) { d = dBox; mat = 2.0; }
+  // impossible carve: torus smoothly subtracted out of a box
+  vec3 pc = p - vec3(-2.3, 0.75, 1.1);
+  float boundCarve = length(pc) - 0.9;
+  if (boundCarve < d) {
+    float dBoxC = sdBox(pc, vec3(0.55));
+    float dTorC = sdTorus(pc, vec2(0.5, 0.16));
+    float dCarve = smax(dBoxC, -dTorC, 0.08);
+    if (dCarve < d) { d = dCarve; mat = 2.0; }
+  }
 
-  // torus
-  float dTorus = sdTorus(p - vec3(1.7, 0.55, -0.9), vec2(0.55, 0.18));
-  if (dTorus < d) { d = dTorus; mat = 3.0; }
+  // floating rocky asteroid: sphere + fbm surface displacement, slowly spun
+  vec3 pa = p - vec3(2.6, 2.1 + sin(uTime * 0.3) * 0.25, -1.6);
+  float boundAst = length(pa) - 0.75;
+  if (boundAst < d) {
+    float ang = uTime * 0.25;
+    vec3 pr = vec3(pa.x * cos(ang) - pa.z * sin(ang), pa.y, pa.x * sin(ang) + pa.z * cos(ang));
+    float dAst = length(pa) - 0.55 - fbm3(pr * 2.2) * 0.14;
+    if (dAst < d) { d = dAst; mat = 3.0; }
+  }
 
-  // ring of domain-repeated columns further out
-  vec3 pc = p - vec3(0.0, 0.0, -4.0);
-  pc.xz = opRep(pc.xz, 1.6, 5.0);
-  float dColumns = sdBox(pc - vec3(0.0, 0.9, 0.0), vec3(0.18, 0.9, 0.18));
-  if (dColumns < d) { d = dColumns; mat = 4.0; }
+  // columns receding toward the horizon, domain-repeated with per-cell
+  // height jitter — fog (not a repeat clamp) is what bounds the field
+  if (p.y < 4.0) {
+    vec2 cell = floor(p.xz / 2.2 + 0.5);
+    vec2 local = p.xz - cell * 2.2;
+    float h = 1.0 + 1.4 * hash21(cell);
+    float dCol = sdBox(vec3(local.x, p.y - h * 0.5, local.y), vec3(0.16, h * 0.5, 0.16));
+    if (dCol < d) { d = dCol; mat = 4.0; }
+  }
 
   return vec2(d, mat);
 }
@@ -131,7 +225,7 @@ float calcAO(vec3 p, vec3 n) {
 float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
   float res = 1.0;
   float t = mint;
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 24; i++) {
     if (t >= maxt) break;
     float h = mapDist(ro + rd * t);
     if (h < 1e-3) return 0.0;
@@ -141,17 +235,46 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
   return clamp(res, 0.0, 1.0);
 }
 
-vec3 materialColor(float id) {
-  if (id < 1.5) return vec3(0.06, 0.55, 0.5);   // blobs — teal
-  if (id < 2.5) return vec3(0.85, 0.4, 0.08);    // box — orange
-  if (id < 3.5) return vec3(0.5, 0.15, 0.7);     // torus — purple
-  return vec3(0.65, 0.65, 0.68);                 // columns — light grey
+vec3 shadeAlbedo(float matId, vec3 p) {
+  if (matId < 0.5) return groundColor(p);
+  if (matId < 1.5) {
+    // the organism is the centrepiece — kept saturated and bright (~0.8) so
+    // it pops against the deliberately paler terrain/columns/carve/asteroid
+    float pulse = 0.5 + 0.5 * sin(uTime * 0.8);
+    return mix(vec3(0.02, 0.75, 0.62), vec3(0.85, 0.08, 0.6), pulse);
+  }
+  if (matId < 2.5) return vec3(0.15, 0.19, 0.25);
+  if (matId < 3.5) {
+    float variation = noise3D(p * 3.0);
+    return mix(vec3(0.21, 0.1, 0.05), vec3(0.33, 0.17, 0.08), variation);
+  }
+  return vec3(0.42, 0.41, 0.4);
+}
+
+// gradient sky (horizon glow -> dark zenith) + sun disc + fbm cloud band,
+// all keyed off uSunDir/uSunColor/uSkyHorizon/uSkyZenith — the time-of-day
+// trig runs once per frame on the JS side (computeSunState below), not here.
+// Also doubles as the far-fog target so geometry fades into the same sky.
+vec3 skyColor(vec3 rd) {
+  float t = clamp(rd.y * 0.5 + 0.5, 0.0, 1.0);
+  vec3 col = mix(uSkyHorizon, uSkyZenith, pow(t, 0.5));
+
+  float sun = pow(max(dot(rd, uSunDir), 0.0), 340.0);
+  col += uSunColor * sun * 3.0;
+
+  float cloud = fbm2(vec2(rd.x, rd.z) / max(abs(rd.y), 0.05) * 0.5 + uTime * 0.015);
+  cloud = smoothstep(0.5, 0.8, cloud) * smoothstep(0.02, 0.2, rd.y) * (1.0 - smoothstep(0.35, 0.85, rd.y));
+  // clouds capped at ~mid-grey even at full daylight — a bright-white band
+  // would drag the frame average up right where the eye lands (horizon)
+  vec3 cloudColor = mix(vec3(0.08, 0.09, 0.13), vec3(0.55, 0.56, 0.6), uDayFactor);
+  col = mix(col, cloudColor, cloud * 0.45);
+  return col;
 }
 
 void main() {
   vec3 ro = cameraPosition;
   vec3 rd = normalize(vRayDir);
-  vec3 lightDir = normalize(vec3(0.6, 0.7, 0.3));
+  vec3 lightDir = uSunDir;
 
   float t = 0.0;
   float matId = -1.0;
@@ -170,7 +293,7 @@ void main() {
   }
 
   if (matId < 0.0 || t > MAX_DIST) {
-    fragColor = vec4(uBackground, 1.0);
+    fragColor = vec4(skyColor(rd), 1.0);
     gl_FragDepth = 1.0;
     return;
   }
@@ -180,11 +303,16 @@ void main() {
   float ao = calcAO(p, n);
   float shadow = softShadow(p + n * 0.02, lightDir, 0.02, 8.0, 16.0);
 
-  vec3 albedo = matId < 0.5 ? groundColor(p) : materialColor(matId);
-  vec3 color = albedo * (0.15 * ao + diff * shadow * 0.9);
+  vec3 albedo = shadeAlbedo(matId, p);
+  // sun below the horizon fades uSunColor toward black, so direct light
+  // switches off on its own without a separate day/night branch here
+  vec3 color = albedo * (uAmbientColor * ao + uSunColor * diff * shadow);
 
-  float fog = 1.0 - exp(-0.02 * t);
-  color = mix(color, uBackground, fog);
+  // fog targets the flat horizon tone (not the direction-dependent sky/cloud
+  // gradient) and at lower density than before, so mid-field keeps contrast
+  // instead of washing into the sky well before the far plane
+  float fog = 1.0 - exp(-0.012 * t);
+  color = mix(color, uSkyHorizon, fog);
 
   fragColor = vec4(color, 1.0);
 
@@ -195,7 +323,42 @@ void main() {
 }
 `
 
-export default function RaymarchScene() {
+const clamp01 = (v) => Math.min(1, Math.max(0, v))
+
+// Sun direction/colour from a 0..24 time-of-day float, computed in JS (cheap
+// trig, runs once per prop change) rather than every fragment. Elevation
+// follows sin((t-6)/12*PI): 0 at 6h/18h, +1 at noon, negative = below horizon.
+function computeSunState(timeOfDay) {
+  const elevation = Math.sin(((timeOfDay - 6) / 12) * Math.PI)
+  const azimuth = ((timeOfDay - 6) / 12) * Math.PI
+  const horiz = Math.sqrt(Math.max(0, 1 - elevation * elevation))
+  const dir = new THREE.Vector3(horiz * Math.cos(azimuth), elevation, horiz * Math.sin(azimuth)).normalize()
+
+  const day = clamp01(elevation)
+  const night = clamp01(-elevation)
+  const lowSun = 1 - Math.abs(Math.max(-1, Math.min(1, elevation)))
+
+  const sunIntensity = clamp01(elevation * 1.4 + 0.05)
+  const sunColor = new THREE.Vector3(1.0, 0.5, 0.25)
+    .lerp(new THREE.Vector3(0.95, 0.97, 1.0), day)
+    .multiplyScalar(sunIntensity)
+
+  const ambientColor = new THREE.Vector3(0.16, 0.17, 0.2)
+    .lerp(new THREE.Vector3(0.05, 0.07, 0.14), night)
+
+  // day tones sit near luminance ~0.5 (mid-grey), not bright white-blue —
+  // the post chain's exposure + shadow-lift pushes brightness up further
+  const skyHorizon = new THREE.Vector3(0.35, 0.45, 0.6)
+    .lerp(new THREE.Vector3(0.85, 0.45, 0.25), lowSun)
+    .lerp(new THREE.Vector3(0.03, 0.05, 0.12), night)
+
+  const skyZenith = new THREE.Vector3(0.28, 0.48, 0.72)
+    .lerp(new THREE.Vector3(0.01, 0.015, 0.04), night)
+
+  return { dir, sunColor, ambientColor, skyHorizon, skyZenith, day }
+}
+
+export default function RaymarchScene({ timeOfDay = 14 }) {
   const meshRef = useRef()
 
   const geometry = useMemo(() => {
@@ -218,10 +381,25 @@ export default function RaymarchScene() {
         uProjA: { value: 0 },
         uProjB: { value: 0 },
         uTime: { value: 0 },
-        uBackground: { value: new THREE.Vector3(0.02, 0.03, 0.05) },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+        uSunColor: { value: new THREE.Vector3(1, 1, 1) },
+        uAmbientColor: { value: new THREE.Vector3(0.16, 0.17, 0.2) },
+        uSkyHorizon: { value: new THREE.Vector3(0.35, 0.45, 0.6) },
+        uSkyZenith: { value: new THREE.Vector3(0.28, 0.48, 0.72) },
+        uDayFactor: { value: 1 },
       },
     })
   }, [])
+
+  useEffect(() => {
+    const s = computeSunState(timeOfDay)
+    material.uniforms.uSunDir.value.copy(s.dir)
+    material.uniforms.uSunColor.value.copy(s.sunColor)
+    material.uniforms.uAmbientColor.value.copy(s.ambientColor)
+    material.uniforms.uSkyHorizon.value.copy(s.skyHorizon)
+    material.uniforms.uSkyZenith.value.copy(s.skyZenith)
+    material.uniforms.uDayFactor.value = s.day
+  }, [timeOfDay, material])
 
   useEffect(() => {
     return () => {

@@ -14,6 +14,7 @@ import { DepthOfFieldEffect, DepthPickingPass } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
+import { SharpenEffect } from './SharpenEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { attachPassTimers, markFrame } from '../perf/passTimers.js'
@@ -36,6 +37,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   const sensor = useMemo(() => new SensorEffect(), [])
   const vision = useMemo(() => new VisionEffect({ noiseTexture: noise }), [noise])
   const outline = useMemo(() => new EdgeOutlineEffect(), [])
+  const sharpen = useMemo(() => new SharpenEffect(), [])
   // DOF runs on the clean render, before the sensor/dither stylisation
   // focusDistance/focusRange are in world units in this postprocessing version
   const dof = useMemo(
@@ -70,6 +72,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     vision.setRamp(ramp)
     vision.setClut(clutTexture)
     outline.setParams(params)
+    sharpen.setParams(params)
     if (errorDiffusion) {
       edPass.setParams(params)
       const d = ramp.image.data
@@ -140,6 +143,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       <primitive object={sensor} />
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}
       <primitive object={outline} />
+      <primitive object={sharpen} />
     </EffectComposer>
   )
 }

@@ -59,6 +59,29 @@ export function useSensorParams() {
     },
   }), [userPresets])
 
+  const { timeOfDay, renderScale, upscaler, sharpen } = useControls({
+    World: folder({
+      timeOfDay: {
+        value: 14, min: 0, max: 24, step: 0.25,
+        hint: 'sun position/colour — both scenes',
+      },
+    }),
+    Display: folder({
+      renderScale: {
+        value: 1, options: [0.25, 0.375, 0.5, 0.75, 1],
+        hint: 'internal render resolution',
+      },
+      upscaler: {
+        value: 'pixelated', options: ['pixelated', 'smooth'],
+        hint: 'nearest vs bilinear upscale of the low-res render',
+      },
+      sharpen: {
+        value: 0, min: 0, max: 1, step: 0.05,
+        hint: 'RCAS sharpening (from AMD FSR)',
+      },
+    }),
+  })
+
   const preset = SENSOR_PRESETS[DEFAULT_SENSOR]
 
   const [values, set] = useControls(() => ({
@@ -159,5 +182,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, ...values }
+  return { sensor, scene, textures, moveMode, perf, timeOfDay, renderScale, upscaler, sharpen, ...values }
 }
