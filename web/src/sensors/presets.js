@@ -113,7 +113,7 @@ export const SENSOR_PRESETS = {
     aeBias: 0,
     shutter: 60, rollingShutter: 0, motionBlur: 0,
     toneS: 0, vignette: 0, chromAb: 0, bloom: 0,
-    dynamicRange: 0, grain: false, grainAnimated: false, isoAgitation: false,
+    dynamicRange: 0, grain: true, grainAnimated: true, isoAgitation: false,
     colorMode: 'rgb', levels: 16, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'silver', pixelSize: 1, clutPreset: 'identity',
     outline: false, outlineStrength: 0,

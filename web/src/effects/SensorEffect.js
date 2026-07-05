@@ -115,7 +115,7 @@ export class SensorEffect extends Effect {
     this._updateWbUniform()
     this.uniforms.get('uDynRange').value = params.dynamicRange || 0
     this.uniforms.get('uToneS').value = params.toneS || 0
-    this.uniforms.get('uGrainAmount').value = params.grain ? 0.35 * (params.iso - 100) / 12700 : 0
+    this.uniforms.get('uGrainAmount').value = params.grain ? Math.max(0, 0.35 * (params.iso - 100) / 12700) : 0
     this.uniforms.get('uBlackLift').value = Math.min(0.05, 0.004 * (params.iso / 100))
     this.uniforms.get('uAnimated').value = !!params.grainAnimated
   }
