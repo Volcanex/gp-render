@@ -82,8 +82,8 @@ export function useSensorParams() {
     }),
     Display: folder({
       renderScale: {
-        value: 1, options: [0.25, 0.375, 0.5, 0.75, 1],
-        hint: 'internal render resolution',
+        value: 1, options: [0.25, 0.375, 0.5, 0.75, 1, 1.5, 2],
+        hint: "internal render resolution; above 1 uses your display's high-DPI pixels — sharper, costs GPU",
       },
       upscaler: {
         value: 'pixelated', options: ['pixelated', 'smooth'],

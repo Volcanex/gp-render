@@ -91,7 +91,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (params.scene !== 'titan') return null
     const fx = new VolumetricFogEffect()
     fx.setLights(TITAN_LAMPS)
-    fx.setParams({ density: 0.014, fogColor: '#2a1608', enabled: true, fogBase: -0.5, fogHeight: 6 })
+    fx.setParams({ density: 0.011, fogColor: '#2a1608', enabled: true, fogBase: -0.5, fogHeight: 4.5 })
     return fx
   }, [params.scene])
   useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])
@@ -158,6 +158,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (volFog) {
       volFog.updateCamera(camera)
       volFog.setTime(state.clock.elapsedTime)
+      // the haze's own glow follows daylight — at night only the lamps light it
+      const day = Math.max(0, Math.sin(((params.timeOfDay - 6) / 12) * Math.PI))
+      const glow = 0.04 + 0.96 * day
+      volFog.uniforms.get('uFogColor').value.setRGB(0.165 * glow, 0.086 * glow, 0.031 * glow)
     }
     const metering = params.exposureMode !== 'manual' || params.wbAuto
     if (metering) {

@@ -264,7 +264,7 @@ function InstancedPoles({ transforms, geometry, material }) {
 }
 
 const NEAR_BLACK = '#020202'
-const FOG_NIGHT = new THREE.Color('#1a0d05')
+const FOG_NIGHT = new THREE.Color('#0a0502')
 const FOG_DAY = new THREE.Color('#3a2210')
 
 export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
@@ -288,8 +288,10 @@ export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
   // Titan barely sees its sun through the haze — weak directional light, but the haze
   // scatters it everywhere, so shadow faces still get a warm orange fill, never true black
   const sunIntensity = visible ? 0.15 + dayFactor * 0.35 : 0
-  const hemiIntensity = visible ? 0.22 + dayFactor * 0.35 : 0
-  const ambientIntensity = visible ? 0.08 + dayFactor * 0.08 : 0
+  // night floors drop hard — the pole lights and torch should be the only meaningful
+  // light after dark, while daytime peaks stay where they were (0.57 hemi, 0.16 ambient)
+  const hemiIntensity = visible ? 0.03 + dayFactor * 0.54 : 0
+  const ambientIntensity = visible ? 0.02 + dayFactor * 0.14 : 0
 
   useEffect(() => {
     const prevFog = scene.fog

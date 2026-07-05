@@ -143,7 +143,8 @@ export class VolumetricFogEffect extends Effect {
     for (let i = 0; i < count; i++) {
       const { position, color } = lamps[i]
       this.lightPositions[i].set(position[0], position[1], position[2])
-      this.lightColors[i].set(color)
+      // 0.7: full-strength inscatter halos read as over-bright blooms
+      this.lightColors[i].set(color).multiplyScalar(0.7)
     }
     this.uniforms.get('uLightCount').value = count
   }
