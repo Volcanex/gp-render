@@ -107,12 +107,12 @@ export const PALETTES = {
 
 export const SENSOR_PRESETS = {
   eye: {
-    label: 'The Eye (flagship)',
-    ev: 0, iso: 100, fNumber: 2.8, dof: true, focusDistance: 8, focalLength: 35, afMode: 'instant',
-    exposureMode: 'auto-iso', whiteBalance: 6500, wbAuto: false,
-    aeBias: -1,
-    toneS: 0.45, vignette: 0.12, chromAb: 0.03, bloom: 0.12,
-    dynamicRange: 10, grain: true, grainAnimated: true, isoAgitation: false,
+    label: 'Clean (debug baseline)',
+    ev: 0, iso: 100, fNumber: 4, dof: false, focusDistance: 8, focalLength: 35, afMode: 'manual',
+    exposureMode: 'manual', whiteBalance: 6500, wbAuto: false,
+    aeBias: 0,
+    toneS: 0, vignette: 0, chromAb: 0, bloom: 0,
+    dynamicRange: 0, grain: false, grainAnimated: false, isoAgitation: false,
     colorMode: 'rgb', levels: 16, ditherMode: 'bluenoise', ditherScale: 1,
     pinning: 'rotation', palette: 'silver', pixelSize: 1, clutPreset: 'identity',
     outline: false, outlineStrength: 0,
