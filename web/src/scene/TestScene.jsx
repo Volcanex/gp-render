@@ -203,76 +203,6 @@ function InstancedField({ transforms, geometry, material }) {
   )
 }
 
-// rain: one LineSegments draw call, GPU-animated fall/drift, camera-following volume
-function Rain({ count = 2500, boxSize = 60, height = 24 }) {
-  const { camera } = useThree()
-  const groupRef = useRef()
-
-  const geometry = useMemo(() => {
-    const rand = mulberry32(909)
-    const positions = new Float32Array(count * 2 * 3)
-    // streak: ~0.35 long, slanted along the shared wind direction
-    const wind = new THREE.Vector3(0.15, -1, 0.05).normalize().multiplyScalar(0.35)
-    for (let i = 0; i < count; i++) {
-      const x0 = (rand() - 0.5) * boxSize
-      const y0 = rand() * height
-      const z0 = (rand() - 0.5) * boxSize
-      const base = i * 6
-      positions[base + 0] = x0
-      positions[base + 1] = y0
-      positions[base + 2] = z0
-      positions[base + 3] = x0 + wind.x
-      positions[base + 4] = y0 + wind.y
-      positions[base + 5] = z0 + wind.z
-    }
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    return geo
-  }, [count, boxSize, height])
-
-  const material = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uHeight: { value: height } },
-        vertexShader: `
-          uniform float uTime;
-          uniform float uHeight;
-          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
-          void main() {
-            float speed = mix(9.0, 14.0, hash(vec2(position.x, position.z)));
-            float wrapped = mod(position.y - uTime * speed, uHeight);
-            float progress = 1.0 - wrapped / uHeight;
-            vec3 pos = vec3(position.x + 0.15 * progress, wrapped, position.z + 0.05 * progress);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-          }
-        `,
-        fragmentShader: `
-          void main() {
-            gl_FragColor = vec4(0.667, 0.706, 0.753, 0.35);
-          }
-        `,
-        transparent: true,
-        depthWrite: false,
-      }),
-    [height],
-  )
-
-  useFrame((state) => {
-    material.uniforms.uTime.value = state.clock.getElapsedTime()
-    if (groupRef.current) {
-      // snap to a 4-unit grid so the volume doesn't visibly swim with the camera
-      groupRef.current.position.x = Math.round(camera.position.x / 4) * 4
-      groupRef.current.position.z = Math.round(camera.position.z / 4) * 4
-    }
-  })
-
-  return (
-    <group ref={groupRef}>
-      <lineSegments geometry={geometry} material={material} />
-    </group>
-  )
-}
-
 const TOWER_POS = [24, 0, -16]
 const SPHERE_PLINTH_POS = [-24, 0, 18]
 const ARCHWAY_POS = [0, 0, -30]
@@ -307,10 +237,8 @@ const SKY_NIGHT = new THREE.Color('#0e1330')
 const GROUND_DAY = new THREE.Color('#4a463c')
 const GROUND_DUSK = new THREE.Color('#3a2c24')
 const GROUND_NIGHT = new THREE.Color('#05060d')
-const OVERCAST_SKY = new THREE.Color('#8a97a8')
-const OVERCAST_GROUND = new THREE.Color('#2c2e28')
 
-export default function TestScene({ bands, textures = true, timeOfDay = 14, torch = false, rain = true }) {
+export default function TestScene({ bands, textures = true, timeOfDay = 14, torch = false }) {
   const {
     visible = true, uv = false, ir = false,
     uvColor = '#aa33ff', irColor = '#ff5500',
@@ -332,18 +260,9 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
   // hemisphere fill pivots at dusk (elevation 0): warm ~0.2 there, brightens to
   // ~0.45 sky-blue at noon, dims to ~0.08 blue at midnight — never pitch black
   const ambientIntensity = sunElevation >= 0 ? 0.2 + dayFactor * 0.25 : 0.2 - nightDepth * 0.12
-  let skyColor = sunElevation >= 0 ? SKY_DUSK.clone().lerp(SKY_NOON, dayFactor) : SKY_DUSK.clone().lerp(SKY_NIGHT, nightDepth)
-  let groundColor = sunElevation >= 0 ? GROUND_DUSK.clone().lerp(GROUND_DAY, dayFactor) : GROUND_DUSK.clone().lerp(GROUND_NIGHT, nightDepth)
+  const skyColor = sunElevation >= 0 ? SKY_DUSK.clone().lerp(SKY_NOON, dayFactor) : SKY_DUSK.clone().lerp(SKY_NIGHT, nightDepth)
+  const groundColor = sunElevation >= 0 ? GROUND_DUSK.clone().lerp(GROUND_DAY, dayFactor) : GROUND_DUSK.clone().lerp(GROUND_NIGHT, nightDepth)
   const nightBoost = 1 + (1 - dayFactor) * 0.6
-
-  // overcast: rain pulls the sky/ground cooler and darker, and knocks the sun
-  // down ~35% — subtle, timeOfDay still rules the base look
-  const sunDim = rain ? 0.65 : 1
-  if (rain) {
-    skyColor = skyColor.clone().lerp(OVERCAST_SKY, 0.4)
-    groundColor = groundColor.clone().lerp(OVERCAST_GROUND, 0.4)
-  }
-  const ambientDim = rain ? 0.85 : 1
 
   const { camera } = useThree()
   const knotRef = useRef()
@@ -451,10 +370,10 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
       {/* lighting — only the visible band illuminates the scene; sun swings
           across the sky with timeOfDay, hemisphere fill keeps shadow sides
           readable outdoors, point lights carry the night */}
-      <hemisphereLight color={skyColor} groundColor={groundColor} intensity={visible ? ambientIntensity * ambientDim : 0} />
+      <hemisphereLight color={skyColor} groundColor={groundColor} intensity={visible ? ambientIntensity : 0} />
       <directionalLight
         position={sunPos}
-        intensity={visible ? dayFactor * 2.4 * sunDim : 0}
+        intensity={visible ? dayFactor * 2.4 : 0}
         color={sunColor}
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -480,9 +399,6 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         castShadow={false}
       />
       <object3D ref={torchTargetRef} />
-
-      {/* rain — visible-band only, one draw call, GPU-animated */}
-      {visible && rain ? <Rain /> : null}
 
       {/* bulb mesh: lit normally in visible, hottest IR source */}
       <mesh position={[-2, 1.8, -1.5]}>
