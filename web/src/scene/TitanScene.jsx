@@ -133,7 +133,7 @@ function terrainHeight(x, z) {
 
 const POLE_COUNT = 9
 const POLE_SPACING = 9
-const LIGHT_COLORS = ['#ff4a20', '#20c8ff', '#ffb020', '#b040ff', '#20ff90']
+const LIGHT_COLORS = ['#cfe8ff']
 
 function buildPolePlan() {
   const items = []
@@ -295,7 +295,7 @@ export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
     const prevFog = scene.fog
     const prevBackground = scene.background
     const hazeColor = FOG_NIGHT.clone().lerp(FOG_DAY, dayMix)
-    scene.fog = new THREE.FogExp2(hazeColor, 0.010)
+    scene.fog = new THREE.FogExp2(hazeColor, 0.005)
     scene.background = hazeColor.clone()
     return () => {
       scene.fog = prevFog

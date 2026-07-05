@@ -91,7 +91,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (params.scene !== 'titan') return null
     const fx = new VolumetricFogEffect()
     fx.setLights(TITAN_LAMPS)
-    fx.setParams({ density: 0.010, fogColor: '#2a1608', enabled: true })
+    fx.setParams({ density: 0.014, fogColor: '#2a1608', enabled: true, fogBase: -0.5, fogHeight: 6 })
     return fx
   }, [params.scene])
   useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])
@@ -155,7 +155,10 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   useFrame((state, delta) => {
     markFrame()
-    if (volFog) volFog.updateCamera(camera)
+    if (volFog) {
+      volFog.updateCamera(camera)
+      volFog.setTime(state.clock.elapsedTime)
+    }
     const metering = params.exposureMode !== 'manual' || params.wbAuto
     if (metering) {
       meterCooldown.current -= delta
