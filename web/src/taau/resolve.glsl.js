@@ -38,6 +38,10 @@
 //   float     uVarianceGamma  neighbourhood clip box half-width, in std devs
 //   float     uBlendBase      baseline history weight (1 - uBlendBase = base current weight)
 //   float     uDepthDisocclusion  disocclusion rejection sensitivity
+//   float     uKernelSharpness  confidence Gaussian falloff constant (default 2.9)
+//   float     uLumaRejection    luminance-rejection reactivity, 0 (off) .. 1 (aggressive)
+//   int       uHistoryFilter    history fetch filter: 0 bilinear, 1 Catmull-Rom
+//   int       uDebugView        0 off, 1 confidence, 2 clip, 3 history, 4 motion
 
 export const resolveVertexShader = /* glsl */ `
 in vec3 position;
@@ -70,6 +74,10 @@ uniform mat4 uPrevVP;
 uniform float uVarianceGamma;
 uniform float uBlendBase;
 uniform float uDepthDisocclusion;
+uniform float uKernelSharpness;
+uniform float uLumaRejection;
+uniform int uHistoryFilter;
+uniform int uDebugView;
 
 in vec2 vUv;
 layout(location = 0) out vec4 fragColor;
@@ -183,7 +191,11 @@ void main() {
   vec2 nearestSamplePos = gridIndex + 0.5 + uJitter;
   vec2 sampleDelta = renderPos - nearestSamplePos;
   float sampleDist2 = dot(sampleDelta, sampleDelta);
-  float sampleConfidence = exp(-2.9 * sampleDist2);
+  // uKernelSharpness replaces FSR2's fixed 2.9 falloff constant: higher
+  // means only output pixels very close to a true jittered sample trust
+  // the current frame (sharper reconstruction, slower to converge on
+  // fresh detail); lower widens that trust radius (softer, less shimmer).
+  float sampleConfidence = exp(-uKernelSharpness * sampleDist2);
 
   // -------------------------------------------------------------------
   // 2. Closest-depth dilation over a 3x3 render-pixel neighbourhood
@@ -225,9 +237,13 @@ void main() {
   // -------------------------------------------------------------------
   // 4. History fetch: 5-tap Catmull-Rom (Jimenez 2016) rather than a
   // plain bilinear tap, so the history doesn't get progressively blurred
-  // out by repeated resampling every frame.
+  // out by repeated resampling every frame. uHistoryFilter exposes the
+  // plain-bilinear fetch too, since Catmull-Rom's sharper reconstruction
+  // can ring on some content — the tuning surface for that tradeoff.
   // -------------------------------------------------------------------
-  vec3 historyColor = sampleCatmullRom5Tap(tHistory, prevUv, uOutputSize);
+  vec3 historyColor = uHistoryFilter == 1
+    ? sampleCatmullRom5Tap(tHistory, prevUv, uOutputSize)
+    : texture(tHistory, prevUv).rgb;
   vec3 historyYCoCg = rgb2ycocg(historyColor);
 
   // -------------------------------------------------------------------
@@ -274,8 +290,12 @@ void main() {
   float currentY = rgb2ycocg(currentColor).x;
   float clippedY = clippedYCoCg.x;
   float relativeLumaChange = abs(currentY - clippedY) / max(max(currentY, clippedY), 0.2);
-  float disocclusion = smoothstep(uDepthDisocclusion, uDepthDisocclusion * 10.0, relativeLumaChange);
-  // Off-screen reprojection is an unambiguous full disocclusion.
+  // uLumaRejection scales how much this test is allowed to react at all:
+  // 0 disables it outright (maximum stability, more ghosting on shading
+  // changes), 1 lets it fire at full strength (fast response, more shimmer).
+  float disocclusion = smoothstep(uDepthDisocclusion, uDepthDisocclusion * 10.0, relativeLumaChange) * uLumaRejection;
+  // Off-screen reprojection is an unambiguous full disocclusion regardless
+  // of the luma-rejection dial — there is no history to speak of.
   disocclusion = offScreen ? 1.0 : disocclusion;
 
   // -------------------------------------------------------------------
@@ -297,7 +317,45 @@ void main() {
   vec3 toneCurrent = currentColor / (1.0 + luma(currentColor));
   vec3 toneHistory = clippedHistory / (1.0 + luma(clippedHistory));
   vec3 blended = mix(toneHistory, toneCurrent, wCurrent);
-  vec3 result = blended / (1.0 - luma(blended));
+  // Guard the inverse tonemap's denominator: luma(blended) can reach or
+  // exceed 1 for very bright/emissive input, which would divide by zero
+  // or flip sign. Clamping it keeps the output finite and non-negative.
+  float inverseDenom = max(1.0 - luma(blended), 1e-3);
+  vec3 result = max(blended / inverseDenom, vec3(0.0));
+
+  // Diagnostic views replace the final colour outright — each isolates
+  // one stage of the resolve so instability/blur can be attributed to a
+  // specific step rather than guessed at from the final image.
+  if (uDebugView == 1) {
+    // Confidence: how much this output pixel trusts the current frame's
+    // jittered sample, before any history blending — bright = near a true
+    // sample (sharp, fast-converging), dark = interpolated (softer).
+    fragColor = vec4(vec3(sampleConfidence), 1.0);
+    return;
+  }
+  if (uDebugView == 2) {
+    // Clip amount: how far the variance clip had to move the history
+    // sample in YCoCg space, as a red overlay on the dimmed current
+    // image — hotspots mark where rectification is fighting the history
+    // hardest, i.e. where instability/ghosting is most likely.
+    float clipAmount = length(historyYCoCg - clippedYCoCg) * 4.0;
+    fragColor = vec4(currentColor * 0.3 + vec3(clipAmount, 0.0, 0.0), 1.0);
+    return;
+  }
+  if (uDebugView == 3) {
+    // Raw reprojected history, pre-clip: any ghosting is visible directly,
+    // unmasked by the rectification step that would otherwise hide it.
+    fragColor = vec4(historyColor, 1.0);
+    return;
+  }
+  if (uDebugView == 4) {
+    // Motion: reprojection delta magnitude (history uv vs. this frame's
+    // uv), exaggerated x50 and shown in green — large values mark where
+    // reprojection itself is likely wrong (bad motion, occlusion edges).
+    float motion = length(prevUv - vUv) * 50.0;
+    fragColor = vec4(0.0, motion, 0.0, 1.0);
+    return;
+  }
 
   fragColor = vec4(result, 1.0);
 }

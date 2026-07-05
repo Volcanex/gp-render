@@ -97,6 +97,9 @@ void main() {
 }
 `
 
+const HISTORY_FILTER = { bilinear: 0, catmullrom: 1 }
+const DEBUG_VIEW = { off: 0, confidence: 1, clip: 2, history: 3, motion: 4 }
+
 function makeFullscreenTriangle(material) {
   const scene = new Scene()
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -156,9 +159,13 @@ export class TAAUPass extends Pass {
         uOutputSize: { value: new Vector2() },
         uCurrInvVP: { value: new Matrix4() },
         uPrevVP: { value: new Matrix4() },
-        uVarianceGamma: { value: 1.0 },
+        uVarianceGamma: { value: 1.5 },
         uBlendBase: { value: 0.9 },
         uDepthDisocclusion: { value: 0.01 },
+        uKernelSharpness: { value: 2.9 },
+        uLumaRejection: { value: 0.5 },
+        uHistoryFilter: { value: 1 },
+        uDebugView: { value: 0 },
       },
       vertexShader: resolveVertexShader,
       fragmentShader: resolveFragmentShader,
@@ -214,6 +221,27 @@ export class TAAUPass extends Pass {
 
   set depthDisocclusion(v) {
     this.resolveMaterial.uniforms.uDepthDisocclusion.value = v
+  }
+
+  get renderResolution() {
+    return [this.renderWidth, this.renderHeight]
+  }
+
+  // bulk tuning entry point for UI/debug panels; only sets what's defined,
+  // so callers can pass a partial options object
+  configure(opts = {}) {
+    const u = this.resolveMaterial.uniforms
+    if (opts.blendBase !== undefined) u.uBlendBase.value = opts.blendBase
+    if (opts.varianceGamma !== undefined) u.uVarianceGamma.value = opts.varianceGamma
+    if (opts.kernelSharpness !== undefined) u.uKernelSharpness.value = opts.kernelSharpness
+    if (opts.lumaRejection !== undefined) u.uLumaRejection.value = opts.lumaRejection
+    if (opts.depthDisocclusion !== undefined) u.uDepthDisocclusion.value = opts.depthDisocclusion
+    if (opts.historyFilter !== undefined) {
+      u.uHistoryFilter.value = HISTORY_FILTER[opts.historyFilter] ?? opts.historyFilter
+    }
+    if (opts.debugView !== undefined) {
+      u.uDebugView.value = DEBUG_VIEW[opts.debugView] ?? opts.debugView
+    }
   }
 
   setRatio(ratio) {

@@ -66,13 +66,24 @@ export default function VisionPipeline({ params, clutTexture }) {
   // the perf win and double-draw.
   const taauOn = params.upscaler === 'taau'
   const taau = useMemo(
-    () => (taauOn ? new TAAUPass(scene, camera, { ratio: 1 / Math.min(params.renderScale, 1) }) : null),
+    () => (taauOn ? new TAAUPass(scene, camera, { ratio: 1 / (params.taauScale || 0.5) }) : null),
     [taauOn, scene, camera],
   )
   useEffect(() => () => { if (taau) taau.dispose() }, [taau])
   useEffect(() => {
-    if (taau) taau.setRatio(1 / Math.min(params.renderScale, 1))
-  }, [taau, params.renderScale])
+    if (taau) taau.setRatio(1 / (params.taauScale || 0.5))
+  }, [taau, params.taauScale])
+  useEffect(() => {
+    if (!taau) return
+    taau.configure({
+      blendBase: params.taauBlend,
+      varianceGamma: params.taauGamma,
+      kernelSharpness: params.taauKernel,
+      lumaRejection: params.taauLumaReject,
+      historyFilter: params.taauFilter,
+      debugView: params.taauDebug,
+    })
+  }, [taau, params.taauBlend, params.taauGamma, params.taauKernel, params.taauLumaReject, params.taauFilter, params.taauDebug])
   // DOF runs on the clean render, before the sensor/dither stylisation
   // focusDistance/focusRange are in world units in this postprocessing version
   const dof = useMemo(

@@ -73,7 +73,10 @@ export function useSensorParams() {
     },
   }), [userPresets])
 
-  const { timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight } = useControls({
+  const {
+    timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight,
+    taauScale, taauOutput, taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
+  } = useControls({
     World: folder({
       timeOfDay: {
         value: 14, min: 0, max: 24, step: 0.25,
@@ -104,6 +107,40 @@ export function useSensorParams() {
       aa: {
         value: true,
         hint: 'SMAA anti-aliasing, applied before the dither so edges smooth but dots stay crisp',
+      },
+    }),
+    TAAU: folder({
+      taauScale: {
+        value: 0.5, options: [0.25, 0.33, 0.5, 0.66, 0.75, 1],
+        hint: "applies when upscaler = 'taau'; internal render scale — 0.5 = quarter the pixels, temporally reconstructed",
+      },
+      taauOutput: {
+        value: 1, options: [1, 1.5, 2],
+        hint: 'output multiplier beyond window resolution — 2 on a 1080p window ≈ 4K supersampled output',
+      },
+      taauBlend: {
+        value: 0.9, min: 0.5, max: 0.98, step: 0.01,
+        hint: 'history weight — higher = smoother/more stable, lower = more responsive',
+      },
+      taauGamma: {
+        value: 1.5, min: 0.25, max: 4, step: 0.05,
+        hint: 'variance clip tightness — lower kills ghosting but shimmers, higher smooths but ghosts',
+      },
+      taauKernel: {
+        value: 2.9, min: 0.5, max: 6, step: 0.1,
+        hint: 'sample confidence sharpness — higher = crisper, slower convergence',
+      },
+      taauLumaReject: {
+        value: 0.5, min: 0, max: 1, step: 0.05,
+        hint: 'luminance-change rejection — 0 stable, 1 reactive',
+      },
+      taauFilter: {
+        value: 'catmullrom', options: ['catmullrom', 'bilinear'],
+        hint: 'history resampling — catmullrom fights blur',
+      },
+      taauDebug: {
+        value: 'off', options: ['off', 'confidence', 'clip', 'history', 'motion'],
+        hint: 'diagnostic views: clip shows instability hotspots, motion shows reprojection error',
       },
     }),
   })
@@ -247,5 +284,10 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight, ...values }
+  return {
+    sensor, scene, textures, moveMode, perf, ao,
+    timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight,
+    taauScale, taauOutput, taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
+    ...values,
+  }
 }
