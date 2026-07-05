@@ -8,10 +8,8 @@ const wrap = {
   font: '11px ui-monospace, monospace', padding: '7px 10px', letterSpacing: '0.03em',
 }
 
-function shutterLabel() {
-  // shutter is locked to the frame rate until motion blur is simulated —
-  // showing a derived value implied a control that doesn't exist
-  return '1/60'
+function shutterLabel(shutter) {
+  return `1/${shutter || 60}`
 }
 
 export default function CameraHud() {
@@ -26,7 +24,7 @@ export default function CameraHud() {
     <div style={wrap}>
       <span style={{ color: '#e8b45a' }}>ISO {cam.iso}</span>
       {' · '}f/{cam.fNumber}
-      {' · '}{shutterLabel(cam.ev)}
+      {' · '}{shutterLabel(cam.shutter)}
       {' · '}{cam.focalLength}mm
       {cam.focus != null ? <>{' · '}{cam.focus.toFixed(1)}m</> : null}
       {auto ? <span style={{ color: '#7ec48a' }}>{'  AE'}{cam.aeStops >= 0 ? '+' : ''}{cam.aeStops.toFixed(1)}</span> : null}

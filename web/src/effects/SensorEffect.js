@@ -29,6 +29,7 @@ const fragmentShader = `
 uniform float uEv;
 uniform float uApertureGain;
 uniform float uIsoGain;
+uniform float uShutterGain;
 uniform vec3 uWbGains;
 uniform float uDynRange;
 uniform float uToneS;
@@ -41,7 +42,7 @@ float hash(vec2 p, float seed) {
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain * uIsoGain;
+  vec3 c = inputColor.rgb * exp2(uEv) * uApertureGain * uIsoGain * uShutterGain;
   c *= uWbGains;
 
   // uDynRange = stops BELOW 18% mid-grey the sensor can see into (shadow
@@ -91,6 +92,7 @@ export class SensorEffect extends Effect {
         ['uEv', new Uniform(0)],
         ['uApertureGain', new Uniform(1)],
         ['uIsoGain', new Uniform(1)],
+        ['uShutterGain', new Uniform(1)],
         ['uWbGains', new Uniform(new Vector3(1, 1, 1))],
         ['uDynRange', new Uniform(0)],
         ['uToneS', new Uniform(0)],
@@ -108,6 +110,7 @@ export class SensorEffect extends Effect {
     const f = Math.max(1, params.fNumber || 5.6)
     this.uniforms.get('uApertureGain').value = (5.6 / f) ** 2
     this.uniforms.get('uIsoGain').value = params.iso / 100
+    this.uniforms.get('uShutterGain').value = 60 / (params.shutter || 60)
     this._manualWbGains = wbGains(params.whiteBalance || 6500)
     this._updateWbUniform()
     this.uniforms.get('uDynRange').value = params.dynamicRange || 0

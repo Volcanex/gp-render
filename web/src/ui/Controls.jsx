@@ -147,8 +147,8 @@ export function useSensorParams() {
     Exposure: folder({
       exposureMode: {
         value: preset.exposureMode ?? 'manual',
-        options: ['manual', 'auto-ev', 'auto-iso'],
-        hint: 'auto meters the scene and lags toward mid-grey; auto-iso raises ISO instead of EV, so low light gets grainy like a real camera',
+        options: ['manual', 'auto-iso', 'auto-shutter', 'auto-aperture', 'auto-ev'],
+        hint: 'priority modes: fix everything else, the named variable floats to meet the meter (auto-iso→grain, auto-shutter→roll/brightness, auto-aperture→depth of field)',
       },
       ev: { value: preset.ev, min: -8, max: 6, step: 0.1 },
       iso: {
@@ -156,6 +156,11 @@ export function useSensorParams() {
         hint: 'base ISO sensitivity — auto-iso trades gain from here against the aperture',
       },
       fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
+      shutter: {
+        value: preset.shutter ?? 60,
+        options: [15, 30, 60, 125, 250, 500, 1000],
+        hint: 'shutter speed 1/N — slower = brighter (+ more rolling-shutter skew), faster = darker',
+      },
       dynamicRange: {
         value: preset.dynamicRange, min: 0, max: 12, step: 0.5,
         hint: 'stops; 0 = linear, higher lifts shadows',
@@ -202,6 +207,14 @@ export function useSensorParams() {
       bloom: {
         value: preset.bloom ?? 0, min: 0, max: 1, step: 0.05,
         hint: 'highlight bloom/halation',
+      },
+      rollingShutter: {
+        value: preset.rollingShutter ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'sensor readout skew — verticals lean when panning, jello under shake; no blur',
+      },
+      motionBlur: {
+        value: preset.motionBlur ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'camera motion blur — off by default, it rarely feels right in games',
       },
     }),
     Dither: folder({

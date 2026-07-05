@@ -15,6 +15,8 @@ import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
 import { TAAUPass, RCASEffect } from '../taau/index.js'
+import { RollingShutterEffect } from './RollingShutterEffect.js'
+import { MotionBlurEffect } from './MotionBlurEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { MeteringPass, AutoExposureController } from './metering.js'
@@ -120,6 +122,23 @@ export default function VisionPipeline({ params, clutTexture }) {
   }, [volFog, params.fogDensity, params.fogHeight])
 
 
+  // Rolling shutter (geometric readout skew, no blur) and optional camera
+  // motion blur — both created only while their amount is non-zero
+  const rollFx = useMemo(
+    () => (params.rollingShutter > 0 ? new RollingShutterEffect() : null),
+    [params.rollingShutter > 0],
+  )
+  useEffect(() => () => { if (rollFx) rollFx.dispose?.() }, [rollFx])
+  const blurFx = useMemo(
+    () => (params.motionBlur > 0 ? new MotionBlurEffect() : null),
+    [params.motionBlur > 0],
+  )
+  useEffect(() => () => { if (blurFx) blurFx.dispose?.() }, [blurFx])
+  const prevYawPitch = useRef([0, 0])
+  const currVP = useRef(new THREE.Matrix4())
+  const prevVP = useRef(new THREE.Matrix4())
+  const currInvVP = useRef(new THREE.Matrix4())
+
   // Lens character: bloom/CA/vignette apply to the clean image before the
   // sensor stylisation, like real glass ahead of the sensor. Each exists in
   // the chain only while its amount is non-zero.
@@ -158,6 +177,8 @@ export default function VisionPipeline({ params, clutTexture }) {
     vision.setClut(clutTexture)
     outline.setParams(params)
     sharpen.setParams(params)
+    if (rollFx) rollFx.setParams(params)
+    if (blurFx) blurFx.setParams(params)
     if (errorDiffusion) {
       edPass.setParams(params)
       const d = ramp.image.data
@@ -188,6 +209,25 @@ export default function VisionPipeline({ params, clutTexture }) {
       volFog.updateCamera(camera)
       volFog.setTime(state.clock.elapsedTime)
     }
+
+    // camera angular velocity in uv units/frame (rolling shutter) and
+    // view-projection pair (motion blur) — both camera-only, like TAAU
+    if (rollFx || blurFx) {
+      euler.setFromQuaternion(camera.quaternion, 'YXZ')
+      const vfov = THREE.MathUtils.degToRad(camera.fov)
+      const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect)
+      if (rollFx) {
+        const [py, pp] = prevYawPitch.current
+        rollFx.setVelocity(-(euler.y - py) / hfov, (euler.x - pp) / vfov)
+      }
+      prevYawPitch.current = [euler.y, euler.x]
+      if (blurFx) {
+        currVP.current.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+        currInvVP.current.copy(currVP.current).invert()
+        blurFx.updateCamera(currInvVP.current, prevVP.current)
+        prevVP.current.copy(currVP.current)
+      }
+    }
     const metering = params.exposureMode !== 'manual' || params.wbAuto
     if (metering) {
       meterCooldown.current -= delta
@@ -206,11 +246,19 @@ export default function VisionPipeline({ params, clutTexture }) {
     } else {
       ae.update(delta, null)
     }
-    // effective exposure: auto modes override ev or iso, sliders stay the base
-    // (reused object — a fresh spread every frame feeds the GC and causes jank)
+    // effective exposure: priority modes float exactly one variable toward
+    // the meter, sliders stay the base values (reused object — a fresh
+    // spread every frame feeds the GC and causes jank)
     const eff = Object.assign(effScratch.current, params)
     if (params.exposureMode === 'auto-ev') eff.ev = params.ev + ae.stops
     else if (params.exposureMode === 'auto-iso') eff.iso = ae.autoIso(params.iso)
+    else if (params.exposureMode === 'auto-shutter') {
+      // one stop = halved shutter denominator (longer exposure)
+      eff.shutter = THREE.MathUtils.clamp((params.shutter || 60) / Math.pow(2, ae.stops), 8, 2000)
+    } else if (params.exposureMode === 'auto-aperture') {
+      // one stop = sqrt(2) on the f-number; DOF follows via eff.fNumber
+      eff.fNumber = THREE.MathUtils.clamp((params.fNumber || 4) / Math.pow(Math.SQRT2, ae.stops), 1.4, 16)
+    }
     sensor.setParams(eff)
     sensor.setAutoWb(params.wbAuto ? autoWb.current : null)
     vision.setParams(eff)
@@ -218,7 +266,8 @@ export default function VisionPipeline({ params, clutTexture }) {
     // fiction derived from effective EV until motion blur is simulated
     window.__titanCamera = {
       iso: Math.round(eff.iso),
-      fNumber: params.fNumber,
+      fNumber: Math.round(eff.fNumber * 10) / 10,
+      shutter: Math.round(eff.shutter || 60),
       focalLength: Math.round(params.focalLength),
       ev: eff.ev,
       aeStops: ae.stops,
@@ -252,12 +301,14 @@ export default function VisionPipeline({ params, clutTexture }) {
         }).catch(() => { reading.current = false; picker.enabled = false })
       }
       af.update(delta, measured.current)
+      // aperture may be AE-driven (auto-aperture priority): DOF follows eff
+      dof.bokehScale = THREE.MathUtils.clamp((params.focalLength / 50) * (10 / eff.fNumber), 0.5, 14)
       dof.cocMaterial.focusDistance = af.current
       // Thin-lens-ish falloff: the CoC shader saturates to full blur at
       // focusRange, so focusRange must span most of the scene for blur to
       // build gradually with distance instead of reading as a uniform blur
       // with one sharp band. Depth of field ~ d^2 * N / f_mm^2.
-      const range = 110 * af.current * af.current * params.fNumber / (params.focalLength * params.focalLength)
+      const range = 110 * af.current * af.current * eff.fNumber / (params.focalLength * params.focalLength)
       dof.cocMaterial.focusRange = THREE.MathUtils.clamp(range, 1.5, 200)
     }
     if (params.pinning === 'rotation') {
@@ -279,6 +330,8 @@ export default function VisionPipeline({ params, clutTexture }) {
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       {volFog ? <primitive object={volFog} /> : null}
+      {rollFx ? <primitive object={rollFx} /> : null}
+      {blurFx ? <primitive object={blurFx} /> : null}
       {bloom ? <primitive object={bloom} /> : null}
       {chromAb ? <primitive object={chromAb} /> : null}
       {vignetteFx ? <primitive object={vignetteFx} /> : null}
