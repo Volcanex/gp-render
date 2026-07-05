@@ -25,7 +25,7 @@ export default function PerfHud() {
         fps: perfRegistry.fps,
         low1: perfRegistry.low1,
         spikes: perfRegistry.spikes,
-        passes: perfRegistry.passes.map((p) => ({ ...p })),
+        passes: perfRegistry.passes.map((p) => ({ name: p.name, ms: p.ms, gpuMs: p.gpuMs })),
       })
     }, 250)
     return () => clearInterval(id)
@@ -33,9 +33,11 @@ export default function PerfHud() {
 
   if (!snapshot || snapshot.passes.length === 0) return null
 
+  const hasGpuTimes = snapshot.passes.some((p) => p.gpuMs > 0)
+
   const rows = snapshot.passes
-    .filter((p) => p.ms >= 0.05)
-    .sort((a, b) => b.ms - a.ms)
+    .filter((p) => p.ms >= 0.05 || p.gpuMs >= 0.05)
+    .sort((a, b) => (hasGpuTimes ? b.gpuMs - a.gpuMs : b.ms - a.ms))
 
   return (
     <div
@@ -64,12 +66,14 @@ export default function PerfHud() {
         <span>{snapshot.spikes} spikes</span>
       </div>
       <div style={{ opacity: 0.5, marginBottom: 4 }}>
-        cpu ms/frame (incl. gpu stalls) — 1% low = felt smoothness, spikes = frames &gt;33ms
+        cpu ms | gpu ms per pass — gpu needs EXT_disjoint_timer_query
       </div>
       {rows.map((p) => (
         <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
           <span>{truncate(p.name)}</span>
-          <span>{p.ms.toFixed(2)}</span>
+          <span>
+            {p.ms.toFixed(2)} | {p.gpuMs > 0 ? p.gpuMs.toFixed(2) : '–'}
+          </span>
         </div>
       ))}
     </div>

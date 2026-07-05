@@ -15,24 +15,27 @@ import { N8AOPostPass } from 'n8ao'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
-import { SharpenEffect } from './SharpenEffect.js'
+import { TAAUPass, RCASEffect } from '../taau/index.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { MeteringPass, AutoExposureController } from './metering.js'
 import { VolumetricFogEffect } from './VolumetricFogEffect.js'
 import { TITAN_LAMPS } from '../scene/TitanScene.jsx'
-import { attachPassTimers, markFrame } from '../perf/passTimers.js'
+import { attachPassTimers, markFrame, initGpuTimers } from '../perf/passTimers.js'
 import { getRampTexture } from './ramps.js'
 
 const euler = new THREE.Euler()
 const pickVec = new THREE.Vector3()
 
 export default function VisionPipeline({ params, clutTexture }) {
-  const { camera, size, scene } = useThree()
+  const { camera, size, scene, gl } = useThree()
+
+  useEffect(() => { initGpuTimers(gl) }, [gl])
 
   // ambient occlusion: geometry scene only (the raymarcher computes its own;
-  // titan's haze hides AO and already pays for reflector + volumetric fog)
-  const aoOn = params.ao && params.scene === 'geometry'
+  // titan's haze hides AO and already pays for reflector + volumetric fog);
+  // off in taau mode (N8AO re-renders the scene at full res)
+  const aoOn = params.ao && params.scene === 'geometry' && params.upscaler !== 'taau'
   const aoPass = useMemo(() => {
     if (!aoOn) return null
     const p = new N8AOPostPass(scene, camera, size.width, size.height)
@@ -54,7 +57,22 @@ export default function VisionPipeline({ params, clutTexture }) {
   const sensor = useMemo(() => new SensorEffect(), [])
   const vision = useMemo(() => new VisionEffect({ noiseTexture: noise }), [noise])
   const outline = useMemo(() => new EdgeOutlineEffect(), [])
-  const sharpen = useMemo(() => new SharpenEffect(), [])
+  const sharpen = useMemo(() => new RCASEffect(), [])
+
+  // TAAU: jittered low-res render + temporal upscale to output resolution.
+  // Replaces the composer's RenderPass (disabled below); renderScale becomes
+  // the internal ratio (0.5 -> 2x upscale). AO is disabled in taau mode for
+  // now: N8AOPostPass re-renders the scene at full res, which would erase
+  // the perf win and double-draw.
+  const taauOn = params.upscaler === 'taau'
+  const taau = useMemo(
+    () => (taauOn ? new TAAUPass(scene, camera, { ratio: 1 / Math.min(params.renderScale, 1) }) : null),
+    [taauOn, scene, camera],
+  )
+  useEffect(() => () => { if (taau) taau.dispose() }, [taau])
+  useEffect(() => {
+    if (taau) taau.setRatio(1 / Math.min(params.renderScale, 1))
+  }, [taau, params.renderScale])
   // DOF runs on the clean render, before the sensor/dither stylisation
   // focusDistance/focusRange are in world units in this postprocessing version
   const dof = useMemo(
@@ -100,8 +118,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (volFog) volFog.setParams({ density: params.fogDensity, fogHeight: params.fogHeight })
   }, [volFog, params.fogDensity, params.fogHeight])
 
-  // SMAA before the sensor stylisation: geometry edges smooth, dither stays crisp
-  const smaa = useMemo(() => (params.aa ? new SMAAEffect() : null), [params.aa])
+  // SMAA before the sensor stylisation: geometry edges smooth, dither stays
+  // crisp; redundant under TAAU (temporal accumulation IS the anti-aliasing)
+  const smaaOn = params.aa && !taauOn
+  const smaa = useMemo(() => (smaaOn ? new SMAAEffect() : null), [smaaOn])
   useEffect(() => () => { if (smaa) smaa.dispose?.() }, [smaa])
 
   // Lens character: bloom/CA/vignette apply to the clean image before the
@@ -152,9 +172,14 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (dof) dof.bokehScale = THREE.MathUtils.clamp((params.focalLength / 50) * (10 / params.fNumber), 0.5, 14)
   }, [params, ramp, sensor, vision, outline, dof, clutTexture, errorDiffusion, edPass])
 
-  // (re)wrap pass render methods with timers whenever the chain changes
+  // (re)wrap pass render methods with timers whenever the chain changes;
+  // also gate the composer's built-in RenderPass: TAAUPass does the scene
+  // draw itself (jittered, low res) when active
   useEffect(() => {
-    if (composerRef.current) attachPassTimers(composerRef.current)
+    const composer = composerRef.current
+    if (!composer) return
+    if (composer.passes[0]) composer.passes[0].enabled = !taauOn
+    attachPassTimers(composer)
   })
 
   useFrame((state, delta) => {
@@ -248,6 +273,7 @@ export default function VisionPipeline({ params, clutTexture }) {
 
   return (
     <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
+      {taau ? <primitive object={taau} /> : null}
       {aoPass ? <primitive object={aoPass} /> : null}
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}

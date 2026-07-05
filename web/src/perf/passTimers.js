@@ -12,15 +12,66 @@ export const perfRegistry = {
   fps: 0,
   low1: 0, // 1% low fps — avg of the worst 1% of frames in the window, the number that tracks felt stutter
   spikes: 0, // frames over 33ms (sub-30fps) in the window
-  passes: [], // [{ name, ms }]
+  passes: [], // [{ name, ms, gpuMs }]
 }
 
 const EMA_ALPHA = 0.08
 const WINDOW_SIZE = 120
 const SPIKE_MS = 33
+const QUERY_POOL_SIZE = 3
 
 let lastFrameTime = null
 const frameDeltas = []
+
+// GPU timer query state (EXT_disjoint_timer_query_webgl2). The extension is
+// frequently unavailable (macOS/ANGLE-Metal) — everything here degrades to
+// CPU-only timing when it's missing.
+let gpuGl = null
+let gpuExt = null
+let gpuTimersAvailable = false
+// Only one timer query can be active (between beginQuery/endQuery) at a time.
+// Since pass render() calls are synchronous and sequential this is naturally
+// true, but we still guard it — a pass that finds a query already active
+// just skips GPU timing for that frame.
+let queryActive = false
+
+export function initGpuTimers(renderer) {
+  gpuGl = renderer.getContext()
+  gpuExt = gpuGl.getExtension('EXT_disjoint_timer_query_webgl2')
+  gpuTimersAvailable = !!gpuExt
+}
+
+function pollGpuQuery(entry) {
+  if (!gpuTimersAvailable || entry.inFlight.length === 0) return
+
+  const query = entry.inFlight[0]
+  const available = gpuGl.getQueryParameter(query, gpuGl.QUERY_RESULT_AVAILABLE)
+  if (!available) return
+
+  entry.inFlight.shift()
+
+  const disjoint = gpuGl.getParameter(gpuExt.GPU_DISJOINT_EXT)
+  if (!disjoint) {
+    const nanoseconds = gpuGl.getQueryParameter(query, gpuGl.QUERY_RESULT)
+    const ms = nanoseconds / 1e6
+    entry.gpuMs = entry.gpuMs ? entry.gpuMs + (ms - entry.gpuMs) * EMA_ALPHA : ms
+  }
+
+  entry.queryPool.push(query)
+}
+
+export function disposeGpuTimers() {
+  for (const entry of perfRegistry.passes) {
+    for (const query of entry.queryPool) gpuGl && gpuGl.deleteQuery(query)
+    for (const query of entry.inFlight) gpuGl && gpuGl.deleteQuery(query)
+    entry.queryPool = []
+    entry.inFlight = []
+  }
+  gpuGl = null
+  gpuExt = null
+  gpuTimersAvailable = false
+  queryActive = false
+}
 
 function passLabel(pass) {
   const base = pass.name || pass.constructor.name || 'Pass'
@@ -40,7 +91,14 @@ export function attachPassTimers(composer) {
 
     const label = passLabel(pass)
     const prevMs = pass.__perfEntry ? pass.__perfEntry.ms : 0
-    const entry = { name: label, ms: prevMs }
+    const prevGpuMs = pass.__perfEntry ? pass.__perfEntry.gpuMs : 0
+    const entry = {
+      name: label,
+      ms: prevMs,
+      gpuMs: prevGpuMs,
+      queryPool: pass.__perfEntry ? pass.__perfEntry.queryPool : [],
+      inFlight: pass.__perfEntry ? pass.__perfEntry.inFlight : [],
+    }
     entries.push(entry)
     pass.__perfEntry = entry
 
@@ -49,10 +107,34 @@ export function attachPassTimers(composer) {
 
     const originalRender = pass.render.bind(pass)
     pass.render = (...args) => {
+      const e = pass.__perfEntry
+
+      pollGpuQuery(e)
+
+      const canQueryGpu = gpuTimersAvailable && !queryActive
+      let query = null
+      if (canQueryGpu) {
+        query = e.queryPool.pop() || gpuGl.createQuery()
+        gpuGl.beginQuery(gpuExt.TIME_ELAPSED_EXT, query)
+        queryActive = true
+      }
+
       const start = performance.now()
       const result = originalRender(...args)
       const elapsed = performance.now() - start
-      const e = pass.__perfEntry
+
+      if (canQueryGpu) {
+        gpuGl.endQuery(gpuExt.TIME_ELAPSED_EXT)
+        queryActive = false
+        if (e.inFlight.length < QUERY_POOL_SIZE) {
+          e.inFlight.push(query)
+        } else {
+          // in-flight queue full (GPU falling behind resolving queries) —
+          // drop this one back into the pool unused rather than growing unbounded
+          e.queryPool.push(query)
+        }
+      }
+
       e.ms += (elapsed - e.ms) * EMA_ALPHA
       return result
     }

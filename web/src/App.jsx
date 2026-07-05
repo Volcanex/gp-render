@@ -54,7 +54,7 @@ export default function App() {
         shadows
         gl={{ powerPreference: 'high-performance', antialias: false, stencil: false, depth: false }}
         camera={{ position: [4, 2.5, 5], fov: 60 }}
-        dpr={params.renderScale}
+        dpr={params.upscaler === 'taau' ? 1 : params.renderScale}
       >
         {params.scene !== 'titan' ? (
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />

@@ -94,8 +94,8 @@ export function useSensorParams() {
         hint: "internal render resolution; above 1 uses your display's high-DPI pixels — sharper, costs GPU",
       },
       upscaler: {
-        value: 'pixelated', options: ['pixelated', 'smooth'],
-        hint: 'nearest vs bilinear upscale of the low-res render',
+        value: 'pixelated', options: ['taau', 'pixelated', 'smooth'],
+        hint: 'taau = temporal upscaling (renderScale becomes the internal ratio — sharp at low render cost); pixelated/smooth = plain CSS scaling',
       },
       sharpen: {
         value: 0, min: 0, max: 1, step: 0.05,
