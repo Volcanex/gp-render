@@ -44,6 +44,7 @@
 // stable output-resolution copy once it exists, in case a future consumer
 // needs to bypass the composer's own setDepthTexture wiring.
 import {
+  AlwaysDepth,
   DepthTexture,
   FloatType,
   HalfFloatType,
@@ -189,7 +190,13 @@ export class TAAUPass extends Pass {
       },
       vertexShader: compositeVertexShader,
       fragmentShader: compositeFragmentShader,
-      depthTest: false,
+      // GL skips depth writes entirely when depth testing is disabled — the
+      // test must be ON with an always-pass func for gl_FragDepth to land.
+      // (depthTest:false + depthWrite:true silently writes nothing, which
+      // left the composer's depth at far-plane: DOF blurred everything and
+      // autofocus read the sky clamp.)
+      depthTest: true,
+      depthFunc: AlwaysDepth,
       depthWrite: true,
       blending: NoBlending,
     })
