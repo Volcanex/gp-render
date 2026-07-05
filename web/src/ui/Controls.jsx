@@ -70,7 +70,7 @@ export function useSensorParams() {
   }), [userPresets])
 
   const {
-    timeOfDay, renderScale, outputScale, sharpen, fogDensity, fogHeight,
+    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
   } = useControls({
     World: folder({
@@ -88,6 +88,10 @@ export function useSensorParams() {
       },
     }),
     Display: folder({
+      taauEnabled: {
+        value: true,
+        hint: 'temporal upscaling on/off — off = plain render at output resolution, for A/B comparison',
+      },
       renderScale: {
         value: 0.5, options: [0.25, 0.33, 0.5, 0.66, 0.75, 1],
         hint: 'internal render scale — TAAU reconstructs full resolution temporally; 1 = plain temporal AA',
@@ -270,7 +274,7 @@ export function useSensorParams() {
 
   return {
     sensor, scene, textures, moveMode, perf,
-    timeOfDay, renderScale, outputScale, sharpen, fogDensity, fogHeight,
+    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
     ...values,
   }

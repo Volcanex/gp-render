@@ -56,6 +56,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     taau.setRatio(1 / (params.renderScale || 0.5))
   }, [taau, params.renderScale])
   useEffect(() => {
+    // re-enabling after an A/B toggle must not blend against stale history
+    if (params.taauEnabled) taau.historyValid = false
+  }, [taau, params.taauEnabled])
+  useEffect(() => {
     if (!taau) return
     taau.configure({
       blendBase: params.taauBlend,
@@ -166,7 +170,11 @@ export default function VisionPipeline({ params, clutTexture }) {
   useEffect(() => {
     const composer = composerRef.current
     if (!composer) return
-    if (composer.passes[0]) composer.passes[0].enabled = false // TAAUPass owns the scene draw
+    // TAAUPass owns the scene draw; when toggled off for A/B the composer's
+    // RenderPass takes back over at output resolution
+    const taauEnabled = params.taauEnabled ?? true
+    if (composer.passes[0]) composer.passes[0].enabled = !taauEnabled
+    taau.enabled = taauEnabled
     attachPassTimers(composer)
   })
 

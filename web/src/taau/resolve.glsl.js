@@ -169,7 +169,33 @@ vec3 sampleCatmullRom5Tap(sampler2D tex, vec2 uv, vec2 texSize) {
 }
 
 void main() {
-  vec3 currentColor = texture(tCurrent, vUv).rgb;
+  vec2 renderTexel = 1.0 / uRenderSize;
+
+  // -------------------------------------------------------------------
+  // Jitter cancellation. tCurrent/tCurrentDepth were rendered through a
+  // PROJECTION shifted by uJitter (see jitter.js applyJitter), so at a
+  // fixed uv the content itself moves every frame — sampling at raw vUv
+  // drags the whole image along with the jitter, which is exactly the
+  // sub-pixel wobble this fixes.
+  //
+  // Sign derivation (applyJitter adds e8 += 2*jx/renderWidth,
+  // e9 += 2*jy/renderHeight to the projection matrix's column-major
+  // elements[8]/[9], i.e. m02/m12): clip.x = ... + m02 * view.z, and for
+  // a standard perspective matrix w = -view.z, so the added term
+  // contributes clip.x += e8 * view.z = -e8 * w. Dividing by w, that's a
+  // flat NDC.x shift of -e8 = -2*jx/renderWidth for every point in the
+  // frame, i.e. a uv shift of -jx/renderWidth. So a world point that
+  // maps to uv U under the UNJITTERED projection lands at
+  // U - uJitter/uRenderSize in the actual jittered render. To read the
+  // jittered textures at the location matching this output pixel's
+  // unjittered position vUv, sample at vUv MINUS that same offset:
+  //   unjitterUv = vUv - uJitter / uRenderSize
+  // (Acceptance test: static camera => uJitter varies frame to frame,
+  // but every world point's rendered content is pulled back to a fixed
+  // uv before use, so the output stops moving with it.)
+  vec2 unjitterUv = clamp(vUv - uJitter / uRenderSize, vec2(0.5) * renderTexel, vec2(1.0) - vec2(0.5) * renderTexel);
+
+  vec3 currentColor = texture(tCurrent, unjitterUv).rgb;
 
   // First frame (or a forced reset): nothing to reproject against yet.
   if (uHistoryValid < 0.5) {
@@ -177,12 +203,14 @@ void main() {
     return;
   }
 
-  vec2 renderTexel = 1.0 / uRenderSize;
-
   // -------------------------------------------------------------------
   // 1. Upsample confidence (FSR2 ffx_fsr2_upsample.h): how close is this
-  // output pixel's center to an actual jittered sample center this
-  // frame? Render and output share the same normalized [0,1] frame, so
+  // output pixel's center to an actual jittered SAMPLE LOCATION this
+  // frame? This lives in the ORIGINAL (non-cancelled) space on purpose —
+  // the true render samples really were taken at the jittered grid
+  // positions, and that's what should drive how much we trust them; only
+  // the texture READS above get jitter-cancelled, not this distance.
+  // Render and output share the same normalized [0,1] frame, so
   // vUv * uRenderSize gives this output pixel's position in continuous
   // render-pixel units; sample centers sit on the grid k + 0.5 + jitter.
   // -------------------------------------------------------------------
@@ -203,21 +231,23 @@ void main() {
   // approach, used in FSR2's reprojection pass): reproject using the
   // depth/position of whichever tap is nearest the camera, not the
   // center tap, so thin foreground edges get correct reprojection
-  // instead of inheriting background motion.
+  // instead of inheriting background motion. Reads are jitter-cancelled
+  // (unjitterUv) so the dilated position lines up with uCurrInvVP, which
+  // is explicitly the UNJITTERED inverse view-projection.
   // -------------------------------------------------------------------
   float closestDepth = 1.0;
   vec2 closestOffset = vec2(0.0);
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       vec2 offset = vec2(float(x), float(y)) * renderTexel;
-      float d = texture(tCurrentDepth, vUv + offset).r;
+      float d = texture(tCurrentDepth, unjitterUv + offset).r;
       if (d < closestDepth) {
         closestDepth = d;
         closestOffset = offset;
       }
     }
   }
-  vec2 dilatedUv = vUv + closestOffset;
+  vec2 dilatedUv = unjitterUv + closestOffset;
 
   // -------------------------------------------------------------------
   // 3. Reprojection: unproject the dilated depth with this frame's
@@ -250,14 +280,16 @@ void main() {
   // 5. Neighbourhood statistics (Salvi 2016): mean and stddev of a 3x3
   // YCoCg neighbourhood around the *undilated* current sample, used to
   // build a variance-based clip box (mean +/- uVarianceGamma * stddev)
-  // instead of a hard min/max clamp.
+  // instead of a hard min/max clamp. Reads are jitter-cancelled
+  // (unjitterUv), same reasoning as the current-color sample above —
+  // otherwise the box itself would drift with the jitter every frame.
   // -------------------------------------------------------------------
   vec3 moment1 = vec3(0.0);
   vec3 moment2 = vec3(0.0);
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       vec2 offset = vec2(float(x), float(y)) * renderTexel;
-      vec3 tapYCoCg = rgb2ycocg(texture(tCurrent, vUv + offset).rgb);
+      vec3 tapYCoCg = rgb2ycocg(texture(tCurrent, unjitterUv + offset).rgb);
       moment1 += tapYCoCg;
       moment2 += tapYCoCg * tapYCoCg;
     }
