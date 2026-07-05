@@ -158,10 +158,6 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (volFog) {
       volFog.updateCamera(camera)
       volFog.setTime(state.clock.elapsedTime)
-      // the haze's own glow follows daylight — at night only the lamps light it
-      const day = Math.max(0, Math.sin(((params.timeOfDay - 6) / 12) * Math.PI))
-      const glow = 0.04 + 0.96 * day
-      volFog.uniforms.get('uFogColor').value.setRGB(0.165 * glow, 0.086 * glow, 0.031 * glow)
     }
     const metering = params.exposureMode !== 'manual' || params.wbAuto
     if (metering) {

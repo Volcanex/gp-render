@@ -97,7 +97,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
       accum += uLightColor[l] * falloff * phase * densityStep * transmittance;
     }
 
-    accum += uFogColor * densityStep * 0.25 * transmittance;
+    // no ambient self-emission: real fog doesn't glow, it only occludes and
+    // scatters actual lights — the scene's distance fog handles colour fade
     pos += rayDir * stepLen;
   }
 
