@@ -73,7 +73,7 @@ export function useSensorParams() {
     },
   }), [userPresets])
 
-  const { timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight } = useControls({
+  const { timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight, rain } = useControls({
     World: folder({
       timeOfDay: {
         value: 14, min: 0, max: 24, step: 0.25,
@@ -86,6 +86,10 @@ export function useSensorParams() {
       fogHeight: {
         value: 4.5, min: 1, max: 12, step: 0.5,
         hint: 'how high the fog pools',
+      },
+      rain: {
+        value: true,
+        hint: 'rain in the geometry scene',
       },
     }),
     Display: folder({
@@ -247,5 +251,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight, ...values }
+  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight, rain, ...values }
 }

@@ -74,7 +74,7 @@ export default function App() {
               uvGain: params.uvGain, irGain: params.irGain,
             }} />
           ) : (
-            <TestScene textures={params.textures} timeOfDay={params.timeOfDay} torch={torch} bands={{
+            <TestScene textures={params.textures} timeOfDay={params.timeOfDay} torch={torch} rain={params.rain} bands={{
               visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
               uvColor: params.uvColor, irColor: params.irColor,
               uvGain: params.uvGain, irGain: params.irGain,
