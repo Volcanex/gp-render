@@ -338,9 +338,15 @@ void main() {
   // uBlendBase sets the baseline history weight when both confidence and
   // disocclusion are low.
   // -------------------------------------------------------------------
-  float baseWeight = mix(1.0 - uBlendBase, 0.5, sampleConfidence);
+  // Confidence scales the current-frame deposit DOWN when the sample is
+  // interpolated, never up: an earlier formulation swung the weight between
+  // ~0.18 and 0.5 with the jitter cycle, which pulsed the whole image every
+  // frame (visible wobble) and blended blurry interpolated samples at high
+  // weight (persistent fuzz). FSR2's accumulation is monotone in confidence
+  // for the same reason.
+  float baseWeight = (1.0 - uBlendBase) * mix(0.25, 1.0, sampleConfidence);
   float disocclusionBoost = mix(1.0, 20.0, disocclusion);
-  float wCurrent = clamp(baseWeight * disocclusionBoost, 0.02, 1.0);
+  float wCurrent = clamp(baseWeight * disocclusionBoost, 0.01, 1.0);
 
   // Karis tonemapped blend (SIGGRAPH 2014): weight both colors by
   // 1/(1+luma) before mixing and invert afterward, so a single bright
