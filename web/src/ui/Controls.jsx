@@ -42,7 +42,7 @@ export function useSensorParams() {
     ),
   }
 
-  const [{ sensor, scene, textures, moveMode, perf, ao }, setGlobals] = useControls(() => ({
+  const [{ sensor, scene, textures, moveMode, perf }, setGlobals] = useControls(() => ({
     sensor: {
       value: DEFAULT_SENSOR,
       options: Object.fromEntries(
@@ -67,15 +67,11 @@ export function useSensorParams() {
       value: true,
       hint: 'FPS + per-pass timings',
     },
-    ao: {
-      value: true,
-      hint: 'ambient occlusion (N8AO)',
-    },
   }), [userPresets])
 
   const {
-    timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight,
-    taauScale, taauOutput, taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
+    timeOfDay, renderScale, outputScale, sharpen, fogDensity, fogHeight,
+    taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
   } = useControls({
     World: folder({
       timeOfDay: {
@@ -93,33 +89,21 @@ export function useSensorParams() {
     }),
     Display: folder({
       renderScale: {
-        value: 1, options: [0.25, 0.375, 0.5, 0.75, 1, 1.5, 2],
-        hint: "internal render resolution; above 1 uses your display's high-DPI pixels — sharper, costs GPU",
+        value: 0.5, options: [0.25, 0.33, 0.5, 0.66, 0.75, 1],
+        hint: 'internal render scale — TAAU reconstructs full resolution temporally; 1 = plain temporal AA',
       },
-      upscaler: {
-        value: 'pixelated', options: ['taau', 'pixelated', 'smooth'],
-        hint: 'taau = temporal upscaling (renderScale becomes the internal ratio — sharp at low render cost); pixelated/smooth = plain CSS scaling',
+      outputScale: {
+        value: 1, options: [1, 1.5, 2],
+        hint: 'output multiplier — 2 on a 1080p window ≈ supersampled 4K',
       },
       sharpen: {
-        value: 0, min: 0, max: 1, step: 0.05,
+        value: 0.2, min: 0, max: 1, step: 0.05,
         hint: 'RCAS sharpening (from AMD FSR)',
-      },
-      aa: {
-        value: true,
-        hint: 'SMAA anti-aliasing, applied before the dither so edges smooth but dots stay crisp',
       },
     }),
     TAAU: folder({
-      taauScale: {
-        value: 0.5, options: [0.25, 0.33, 0.5, 0.66, 0.75, 1],
-        hint: "applies when upscaler = 'taau'; internal render scale — 0.5 = quarter the pixels, temporally reconstructed",
-      },
-      taauOutput: {
-        value: 1, options: [1, 1.5, 2],
-        hint: 'output multiplier beyond window resolution — 2 on a 1080p window ≈ 4K supersampled output',
-      },
       taauBlend: {
-        value: 0.9, min: 0.5, max: 0.98, step: 0.01,
+        value: 0.92, min: 0.5, max: 0.98, step: 0.01,
         hint: 'history weight — higher = smoother/more stable, lower = more responsive',
       },
       taauGamma: {
@@ -131,7 +115,7 @@ export function useSensorParams() {
         hint: 'sample confidence sharpness — higher = crisper, slower convergence',
       },
       taauLumaReject: {
-        value: 0.5, min: 0, max: 1, step: 0.05,
+        value: 0.3, min: 0, max: 1, step: 0.05,
         hint: 'luminance-change rejection — 0 stable, 1 reactive',
       },
       taauFilter: {
@@ -285,9 +269,9 @@ export function useSensorParams() {
   }, [sensor, userPresets, set])
 
   return {
-    sensor, scene, textures, moveMode, perf, ao,
-    timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight,
-    taauScale, taauOutput, taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
+    sensor, scene, textures, moveMode, perf,
+    timeOfDay, renderScale, outputScale, sharpen, fogDensity, fogHeight,
+    taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
     ...values,
   }
 }

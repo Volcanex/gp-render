@@ -50,11 +50,10 @@ export default function App() {
   return (
     <>
       <Canvas
-        className={params.upscaler === 'smooth' ? 'upscale-smooth' : undefined}
         shadows
         gl={{ powerPreference: 'high-performance', antialias: false, stencil: false, depth: false }}
         camera={{ position: [4, 2.5, 5], fov: 60 }}
-        dpr={params.upscaler === 'taau' ? (params.taauOutput || 1) : params.renderScale}
+        dpr={params.outputScale || 1}
       >
         {params.scene !== 'titan' ? (
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
