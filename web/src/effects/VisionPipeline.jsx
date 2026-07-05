@@ -48,13 +48,13 @@ export default function VisionPipeline({ params, clutTexture }) {
   // to output resolution. It replaces the composer's RenderPass (disabled
   // below); renderScale is the internal ratio (0.5 -> 2x upscale, 1 = TAA).
   const taau = useMemo(
-    () => new TAAUPass(scene, camera, { ratio: 1 / (params.renderScale || 0.5) }),
+    () => new TAAUPass(scene, camera, { ratioX: 1 / (params.renderScaleX || 0.5), ratioY: 1 / (params.renderScaleY || 0.5) }),
     [scene, camera],
   )
   useEffect(() => () => { taau.dispose() }, [taau])
   useEffect(() => {
-    taau.setRatio(1 / (params.renderScale || 0.5))
-  }, [taau, params.renderScale])
+    taau.setRatio(1 / (params.renderScaleX || 0.5), 1 / (params.renderScaleY || 0.5))
+  }, [taau, params.renderScaleX, params.renderScaleY])
   useEffect(() => {
     // re-enabling after an A/B toggle must not blend against stale history
     if (params.taauEnabled) taau.historyValid = false

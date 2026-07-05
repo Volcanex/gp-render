@@ -8,11 +8,10 @@ const wrap = {
   font: '11px ui-monospace, monospace', padding: '7px 10px', letterSpacing: '0.03em',
 }
 
-function shutterLabel(ev) {
-  // fiction: EV maps to an equivalent shutter around a 1/60 base
-  const denom = 60 * Math.pow(2, -ev)
-  if (denom >= 1) return `1/${Math.round(denom)}`
-  return `${Math.round(1 / denom)}"`
+function shutterLabel() {
+  // shutter is locked to the frame rate until motion blur is simulated —
+  // showing a derived value implied a control that doesn't exist
+  return '1/60'
 }
 
 export default function CameraHud() {

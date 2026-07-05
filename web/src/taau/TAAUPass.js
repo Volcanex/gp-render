@@ -110,11 +110,16 @@ function makeFullscreenTriangle(material) {
 }
 
 export class TAAUPass extends Pass {
-  constructor(scene, camera, { ratio = 2 } = {}) {
+  // ratioX/ratioY are independent per-axis render ratios (e.g. ratioX: 2,
+  // ratioY: 1 renders at half horizontal resolution, full vertical — an
+  // interlace-style reconstruction). `ratio` is accepted as a shorthand
+  // that sets both axes when the caller doesn't need them to differ.
+  constructor(scene, camera, { ratio, ratioX = ratio ?? 2, ratioY = ratio ?? 2 } = {}) {
     super('TAAUPass', scene, camera)
     this.mainScene = scene
     this.mainCamera = camera
-    this.ratio = ratio
+    this.ratioX = ratioX
+    this.ratioY = ratioY
 
     // see file header: this mirrors RenderPass so the composer's own
     // depth-texture distribution picks up our composite-step depth write
@@ -154,7 +159,7 @@ export class TAAUPass extends Pass {
         tHistory: { value: null },
         uHistoryValid: { value: 0 },
         uJitter: { value: new Vector2() },
-        uRatio: { value: ratio },
+        uRatio: { value: Math.max(ratioX, ratioY) },
         uRenderSize: { value: new Vector2() },
         uOutputSize: { value: new Vector2() },
         uCurrInvVP: { value: new Matrix4() },
@@ -244,16 +249,24 @@ export class TAAUPass extends Pass {
     }
   }
 
-  setRatio(ratio) {
-    this.ratio = ratio
+  // ratioY defaults to ratioX so existing single-ratio callers are unaffected
+  setRatio(ratioX, ratioY = ratioX) {
+    this.ratioX = ratioX
+    this.ratioY = ratioY
     this.setSize(this.outputWidth, this.outputHeight)
+  }
+
+  // trivial alias for callers that only care about a single number; not
+  // meaningful once the two axes diverge, but harmless to read
+  get ratio() {
+    return this.ratioX
   }
 
   setSize(outputWidth, outputHeight) {
     this.outputWidth = Math.max(1, outputWidth)
     this.outputHeight = Math.max(1, outputHeight)
-    this.renderWidth = Math.max(1, Math.floor(this.outputWidth / this.ratio))
-    this.renderHeight = Math.max(1, Math.floor(this.outputHeight / this.ratio))
+    this.renderWidth = Math.max(1, Math.floor(this.outputWidth / this.ratioX))
+    this.renderHeight = Math.max(1, Math.floor(this.outputHeight / this.ratioY))
 
     this._disposeTargets()
 
@@ -284,11 +297,19 @@ export class TAAUPass extends Pass {
     this.readHistory = this.historyA
     this.writeHistory = this.historyB
 
-    this.jitter.configure(this.renderWidth, this.outputWidth)
+    // phase count must track the axis with the coarser (larger) ratio —
+    // that's the axis needing more distinct jitter positions to fully cover
+    // its output texels — so use whichever axis's actual pixel dimensions
+    // produce the larger ratio (post-floor(), not just the nominal one)
+    if (this.ratioX >= this.ratioY) {
+      this.jitter.configure(this.renderWidth, this.outputWidth)
+    } else {
+      this.jitter.configure(this.renderHeight, this.outputHeight)
+    }
     this.historyValid = false
     this._havePrevVP = false
 
-    this.resolveMaterial.uniforms.uRatio.value = this.ratio
+    this.resolveMaterial.uniforms.uRatio.value = Math.max(this.ratioX, this.ratioY)
     this.resolveMaterial.uniforms.uRenderSize.value.set(this.renderWidth, this.renderHeight)
     this.resolveMaterial.uniforms.uOutputSize.value.set(this.outputWidth, this.outputHeight)
   }

@@ -70,7 +70,7 @@ export function useSensorParams() {
   }), [userPresets])
 
   const {
-    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
+    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
   } = useControls({
     World: folder({
@@ -92,9 +92,13 @@ export function useSensorParams() {
         value: true,
         hint: 'temporal upscaling on/off — off = plain render at output resolution, for A/B comparison',
       },
-      renderScale: {
-        value: 0.5, options: [0.25, 0.33, 0.5, 0.66, 0.75, 1],
-        hint: 'internal render scale — TAAU reconstructs full resolution temporally; 1 = plain temporal AA',
+      renderScaleX: {
+        value: 0.5, min: 0.2, max: 1, step: 0.01,
+        hint: 'internal render scale per axis — non-matching ratios give interlace-style reconstruction',
+      },
+      renderScaleY: {
+        value: 0.5, min: 0.2, max: 1, step: 0.01,
+        hint: 'internal render scale per axis — non-matching ratios give interlace-style reconstruction',
       },
       outputScale: {
         value: 1, options: [1, 1.5, 2],
@@ -146,8 +150,11 @@ export function useSensorParams() {
         options: ['manual', 'auto-ev', 'auto-iso'],
         hint: 'auto meters the scene and lags toward mid-grey; auto-iso raises ISO instead of EV, so low light gets grainy like a real camera',
       },
-      ev: { value: preset.ev, min: -4, max: 4, step: 0.1 },
-      iso: { value: preset.iso, min: 100, max: 12800, step: 100 },
+      ev: { value: preset.ev, min: -8, max: 6, step: 0.1 },
+      iso: {
+        value: preset.iso, min: 25, max: 25600, step: 25,
+        hint: 'base ISO sensitivity — auto-iso trades gain from here against the aperture',
+      },
       fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
       dynamicRange: {
         value: preset.dynamicRange, min: 0, max: 12, step: 0.5,
@@ -278,7 +285,7 @@ export function useSensorParams() {
 
   return {
     sensor, scene, textures, moveMode, perf,
-    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
+    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
     ...values,
   }
