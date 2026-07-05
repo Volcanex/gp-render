@@ -78,6 +78,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   useEffect(() => () => meter.dispose(), [meter])
   const ae = useMemo(() => new AutoExposureController(), [])
   useEffect(() => { ae.setMode(params.exposureMode) }, [ae, params.exposureMode])
+  useEffect(() => { ae.setBias(params.aeBias) }, [ae, params.aeBias])
   const meterCooldown = useRef(0)
   const autoWb = useRef(null)
   const effScratch = useRef({})
@@ -95,6 +96,9 @@ export default function VisionPipeline({ params, clutTexture }) {
     return fx
   }, [params.scene])
   useEffect(() => () => { if (volFog) volFog.dispose?.() }, [volFog])
+  useEffect(() => {
+    if (volFog) volFog.setParams({ density: params.fogDensity, fogHeight: params.fogHeight })
+  }, [volFog, params.fogDensity, params.fogHeight])
 
   // SMAA before the sensor stylisation: geometry edges smooth, dither stays crisp
   const smaa = useMemo(() => (params.aa ? new SMAAEffect() : null), [params.aa])

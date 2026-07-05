@@ -73,11 +73,19 @@ export function useSensorParams() {
     },
   }), [userPresets])
 
-  const { timeOfDay, renderScale, upscaler, sharpen, aa } = useControls({
+  const { timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight } = useControls({
     World: folder({
       timeOfDay: {
         value: 14, min: 0, max: 24, step: 0.25,
         hint: 'sun position/colour — both scenes',
+      },
+      fogDensity: {
+        value: 0.011, min: 0, max: 0.04, step: 0.001,
+        hint: 'titan volumetric fog thickness',
+      },
+      fogHeight: {
+        value: 4.5, min: 1, max: 12, step: 0.5,
+        hint: 'how high the fog pools',
       },
     }),
     Display: folder({
@@ -127,6 +135,10 @@ export function useSensorParams() {
       toneS: {
         value: preset.toneS ?? 0, min: 0, max: 1, step: 0.05,
         hint: 'filmic S-curve — toe/shoulder contrast on top of dynamic range',
+      },
+      aeBias: {
+        value: preset.aeBias ?? 0, min: -3, max: 3, step: 0.1,
+        hint: "auto-exposure compensation — negative keeps dark scenes dark, like a real camera's +/- dial",
       },
     }),
     Optics: folder({
@@ -235,5 +247,5 @@ export function useSensorParams() {
     set(rest)
   }, [sensor, userPresets, set])
 
-  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, ...values }
+  return { sensor, scene, textures, moveMode, perf, ao, timeOfDay, renderScale, upscaler, sharpen, aa, fogDensity, fogHeight, ...values }
 }

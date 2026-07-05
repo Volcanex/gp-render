@@ -186,10 +186,17 @@ export class AutoExposureController {
     this.mode = 'manual'
     this.stops = 0
     this._targetStops = 0
+    this.bias = 0
   }
 
   setMode(mode) {
     this.mode = mode
+  }
+
+  // exposure compensation in stops — a camera's +/- dial; negative keeps
+  // dark scenes dark instead of letting AE normalise everything to mid-grey
+  setBias(stops) {
+    this.bias = stops || 0
   }
 
   // meteredLuma: 0..1 from MeteringPass.lastSample.luma, or null when no new
@@ -207,7 +214,7 @@ export class AutoExposureController {
     // 'auto-ev' and 'auto-iso' share identical dynamics here — auto-iso just
     // consumes the same `stops` value differently, via autoIso() below.
     if (meteredLuma != null) {
-      const err = Math.log2(TARGET_LUMA / Math.max(meteredLuma, 1e-4))
+      const err = Math.log2(TARGET_LUMA / Math.max(meteredLuma, 1e-4)) + this.bias
       this._targetStops = clamp(err, -6, 6)
     }
     const alpha = 1 - Math.exp(-dt / 0.6)
