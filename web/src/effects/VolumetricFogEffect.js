@@ -66,7 +66,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 rayDir = normalize((uCamWorld * vec4(viewRay, 0.0)).xyz);
   vec3 camPos = uCamWorld[3].xyz;
 
-  const int STEPS = 24; // steps * lights is the perf budget — tune these two knobs first
+  const int STEPS = 16; // steps * lights is the perf budget — tune these two knobs first
   float stepLen = rayLen / float(STEPS);
 
   float jitter = hash(gl_FragCoord.xy) * stepLen;

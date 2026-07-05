@@ -70,7 +70,7 @@ export function useSensorParams() {
   }), [userPresets])
 
   const {
-    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, fogDensity, fogHeight,
+    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
   } = useControls({
     World: folder({
@@ -103,6 +103,10 @@ export function useSensorParams() {
       sharpen: {
         value: 0.2, min: 0, max: 1, step: 0.05,
         hint: 'RCAS sharpening (from AMD FSR)',
+      },
+      aa: {
+        value: false,
+        hint: 'extra SMAA pass on top of TAAU — catches residual geometric edges, small GPU cost',
       },
     }),
     TAAU: folder({
@@ -274,7 +278,7 @@ export function useSensorParams() {
 
   return {
     sensor, scene, textures, moveMode, perf,
-    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, fogDensity, fogHeight,
+    timeOfDay, renderScale, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
     ...values,
   }

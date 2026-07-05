@@ -31,6 +31,13 @@ export default function CameraHud() {
       {' · '}{cam.focalLength}mm
       {cam.focus != null ? <>{' · '}{cam.focus.toFixed(1)}m</> : null}
       {auto ? <span style={{ color: '#7ec48a' }}>{'  AE'}{cam.aeStops >= 0 ? '+' : ''}{cam.aeStops.toFixed(1)}</span> : null}
+      {cam.taauTo ? (
+        <span style={{ color: '#8aa4c4' }}>
+          {'  '}
+          {cam.taauFrom ? `${cam.taauFrom[0]}×${cam.taauFrom[1]} → ` : ''}
+          {cam.taauTo[0]}×{cam.taauTo[1]}
+        </span>
+      ) : null}
     </div>
   )
 }

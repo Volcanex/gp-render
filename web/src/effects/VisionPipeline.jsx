@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import { EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
-import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, VignetteEffect } from 'postprocessing'
+import { BloomEffect, ChromaticAberrationEffect, DepthOfFieldEffect, DepthPickingPass, SMAAEffect, VignetteEffect } from 'postprocessing'
 import { SensorEffect } from './SensorEffect.js'
 import { VisionEffect } from './VisionEffect.js'
 import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
@@ -59,6 +59,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     // re-enabling after an A/B toggle must not blend against stale history
     if (params.taauEnabled) taau.historyValid = false
   }, [taau, params.taauEnabled])
+
+  // optional extra SMAA on top of the temporal resolve (residual geo edges)
+  const smaa = useMemo(() => (params.aa ? new SMAAEffect() : null), [params.aa])
+  useEffect(() => () => { if (smaa) smaa.dispose?.() }, [smaa])
   useEffect(() => {
     if (!taau) return
     taau.configure({
@@ -220,6 +224,8 @@ export default function VisionPipeline({ params, clutTexture }) {
       aeStops: ae.stops,
       focus: dof ? af.current : null,
       exposureMode: params.exposureMode,
+      taauFrom: (params.taauEnabled ?? true) ? [taau.renderWidth, taau.renderHeight] : null,
+      taauTo: [taau.outputWidth, taau.outputHeight],
     }
     if (dof) {
       // sample crosshair depth — throttled: the readback forces a GPU sync,
@@ -276,6 +282,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       {bloom ? <primitive object={bloom} /> : null}
       {chromAb ? <primitive object={chromAb} /> : null}
       {vignetteFx ? <primitive object={vignetteFx} /> : null}
+      {smaa ? <primitive object={smaa} /> : null}
       <primitive object={meter} />
       <primitive object={sensor} />
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}

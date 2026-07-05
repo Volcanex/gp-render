@@ -376,7 +376,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         intensity={visible ? dayFactor * 2.4 : 0}
         color={sunColor}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-45}
         shadow-camera-right={45}
         shadow-camera-top={45}
