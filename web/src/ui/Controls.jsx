@@ -32,6 +32,43 @@ function saveUserPresets(presets) {
   }
 }
 
+const GEN_OPTIONS = ['value', 'perlin', 'worley', 'worleyEdge', 'fbm', 'ridged', 'warp', 'stripes', 'checker']
+const BLEND_OPTIONS = ['add', 'mul', 'overlay', 'screen', 'mix', 'max']
+
+function materialLayerFolder(i) {
+  const on = i === 1
+  const amount = i === 1 ? 1 : 0.5
+  return folder({
+    [`l${i}on`]: { value: on },
+    [`l${i}gen`]: { value: 'fbm', options: GEN_OPTIONS },
+    [`l${i}scale`]: { value: 6, min: 0.5, max: 40, step: 0.1 },
+    [`l${i}octaves`]: { value: 4, min: 1, max: 8, step: 1 },
+    [`l${i}amount`]: { value: amount, min: 0, max: 1, step: 0.01 },
+    [`l${i}blend`]: { value: 'mix', options: BLEND_OPTIONS },
+  })
+}
+
+export function useMaterialLab() {
+  return useControls(() => ({
+    'Material Lab': folder({
+      matName: { value: 'material' },
+      ramp: {
+        value: 'basalt',
+        options: ['basalt', 'rust', 'ice', 'sandstone', 'moss', 'steel', 'clay', 'obsidian', 'bone'],
+      },
+      roughnessBase: { value: 0.8, min: 0, max: 1, step: 0.01 },
+      roughnessContrast: { value: 0.3, min: -1, max: 1, step: 0.01 },
+      normalStrength: { value: 1, min: 0, max: 3, step: 0.05 },
+      'Layer 1': materialLayerFolder(1),
+      'Layer 2': materialLayerFolder(2),
+      'Layer 3': materialLayerFolder(3),
+      'Layer 4': materialLayerFolder(4),
+      'reroll wall': button(() => window.dispatchEvent(new Event('titan:mat-reroll'))),
+      'save material': button(() => window.dispatchEvent(new Event('titan:mat-save'))),
+    }),
+  }))
+}
+
 export function useSensorParams() {
   const [userPresets, setUserPresets] = useState(loadUserPresets)
 
@@ -51,8 +88,8 @@ export function useSensorParams() {
     },
     scene: {
       value: 'geometry',
-      options: ['geometry', 'titan', 'raymarch'],
-      hint: 'spectrum (uv/ir) only applies to the geometry scene',
+      options: ['geometry', 'titan', 'raymarch', 'materials'],
+      hint: 'spectrum (uv/ir) only applies to the geometry scene; materials = generated-texture gallery',
     },
     textures: {
       value: true,
