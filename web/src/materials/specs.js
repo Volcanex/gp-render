@@ -16,6 +16,10 @@ export const RAMPS = {
   clay:      [[0, '#2e1a14'], [0.45, '#6e4030'], [0.75, '#a06a50'], [1, '#d0a482']],
   obsidian:  [[0, '#050508'], [0.6, '#16141e'], [0.85, '#2e2a40'], [1, '#5a5478']],
   bone:      [[0, '#4a4238'], [0.4, '#8a8070'], [0.7, '#c0b8a4'], [1, '#efe8d8']],
+  walnut:    [[0, '#1a0e06'], [0.35, '#3e2410'], [0.65, '#6a4420'], [0.85, '#8a5c30'], [1, '#b08048']],
+  nebula:    [[0, '#06040f'], [0.3, '#1e1048'], [0.55, '#5a2080'], [0.8, '#c05090'], [1, '#ffd0a0']],
+  copper:    [[0, '#14100c'], [0.4, '#4a2e1c'], [0.7, '#9a5c34'], [0.88, '#d08850'], [1, '#68c0a8']],
+  lichen:    [[0, '#242820'], [0.4, '#4a5038'], [0.65, '#788858'], [0.85, '#a8b880'], [1, '#e0e8c0']],
 }
 
 const GENS = ['value', 'perlin', 'worley', 'worleyEdge', 'fbm', 'ridged', 'warp', 'stripes', 'checker']
@@ -39,11 +43,14 @@ const range = (r, lo, hi) => lo + r() * (hi - lo)
 // than uniform noise soup: each names a base generator, detail overlays
 // and the ramps that suit it
 const FAMILIES = [
-  { name: 'rock', bases: ['fbm', 'ridged', 'warp'], details: ['worleyEdge', 'ridged', 'value'], ramps: ['basalt', 'sandstone', 'clay', 'obsidian'], rough: [0.75, 1] },
-  { name: 'metal', bases: ['fbm', 'stripes', 'value'], details: ['worleyEdge', 'stripes', 'perlin'], ramps: ['steel', 'rust', 'obsidian'], rough: [0.25, 0.7] },
-  { name: 'organic', bases: ['warp', 'fbm', 'worley'], details: ['worley', 'ridged', 'perlin'], ramps: ['moss', 'bone', 'clay'], rough: [0.6, 0.95] },
-  { name: 'ice', bases: ['worley', 'warp', 'ridged'], details: ['worleyEdge', 'fbm'], ramps: ['ice', 'obsidian', 'bone'], rough: [0.1, 0.45] },
-  { name: 'built', bases: ['checker', 'stripes', 'value'], details: ['fbm', 'worleyEdge'], ramps: ['basalt', 'steel', 'sandstone', 'clay'], rough: [0.5, 0.9] },
+  { name: 'rock', bases: ['fbm', 'ridged', 'warp', 'billow', 'terrace'], details: ['worleyEdge', 'ridged', 'cracks', 'craters', 'value'], ramps: ['basalt', 'sandstone', 'clay', 'obsidian'], rough: [0.75, 1] },
+  { name: 'metal', bases: ['fbm', 'stripes', 'value', 'hex'], details: ['worleyEdge', 'stripes', 'dots', 'cracks', 'perlin'], ramps: ['steel', 'rust', 'copper', 'obsidian'], rough: [0.25, 0.7] },
+  { name: 'organic', bases: ['warp', 'fbm', 'worley', 'scales', 'swirl'], details: ['worley', 'ridged', 'scales', 'caustics', 'perlin'], ramps: ['moss', 'bone', 'clay', 'lichen'], rough: [0.6, 0.95] },
+  { name: 'ice', bases: ['worley', 'warp', 'ridged', 'caustics'], details: ['worleyEdge', 'cracks', 'marble', 'fbm'], ramps: ['ice', 'obsidian', 'bone'], rough: [0.1, 0.45] },
+  { name: 'built', bases: ['checker', 'stripes', 'value', 'hex', 'truchet'], details: ['fbm', 'worleyEdge', 'dots'], ramps: ['basalt', 'steel', 'sandstone', 'clay'], rough: [0.5, 0.9] },
+  { name: 'wood', bases: ['wood', 'marble', 'stripes'], details: ['fbm', 'cracks', 'value'], ramps: ['walnut', 'clay', 'bone'], rough: [0.45, 0.85] },
+  { name: 'cosmic', bases: ['julia', 'plasma', 'swirl', 'warp'], details: ['caustics', 'billow', 'dots', 'simplex'], ramps: ['nebula', 'obsidian', 'ice', 'copper'], rough: [0.3, 0.8] },
+  { name: 'desert', bases: ['terrace', 'ridged', 'craters', 'billow'], details: ['craters', 'cracks', 'fbm', 'dots'], ramps: ['sandstone', 'rust', 'clay', 'bone'], rough: [0.7, 1] },
 ]
 
 export function randomSpec(seed) {

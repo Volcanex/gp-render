@@ -32,7 +32,11 @@ function saveUserPresets(presets) {
   }
 }
 
-const GEN_OPTIONS = ['value', 'perlin', 'worley', 'worleyEdge', 'fbm', 'ridged', 'warp', 'stripes', 'checker']
+const GEN_OPTIONS = [
+  'value', 'perlin', 'simplex', 'worley', 'worleyEdge', 'fbm', 'ridged', 'billow',
+  'warp', 'swirl', 'marble', 'wood', 'cracks', 'craters', 'scales', 'hex', 'dots',
+  'caustics', 'truchet', 'stripes', 'checker', 'terrace', 'julia', 'plasma',
+]
 const BLEND_OPTIONS = ['add', 'mul', 'overlay', 'screen', 'mix', 'max']
 
 function materialLayerFolder(i) {
@@ -54,7 +58,7 @@ export function useMaterialLab() {
       matName: { value: 'material' },
       ramp: {
         value: 'basalt',
-        options: ['basalt', 'rust', 'ice', 'sandstone', 'moss', 'steel', 'clay', 'obsidian', 'bone'],
+        options: ['basalt', 'rust', 'ice', 'sandstone', 'moss', 'steel', 'clay', 'obsidian', 'bone', 'walnut', 'nebula', 'copper', 'lichen'],
       },
       roughnessBase: { value: 0.8, min: 0, max: 1, step: 0.01 },
       roughnessContrast: { value: 0.3, min: -1, max: 1, step: 0.01 },

@@ -38,6 +38,21 @@ const GEN_MAP = {
   warp: 6,
   stripes: 7,
   checker: 8,
+  simplex: 9,
+  billow: 10,
+  marble: 11,
+  wood: 12,
+  cracks: 13,
+  craters: 14,
+  scales: 15,
+  hex: 16,
+  dots: 17,
+  caustics: 18,
+  julia: 19,
+  plasma: 20,
+  terrace: 21,
+  swirl: 22,
+  truchet: 23,
 }
 
 const BLEND_MAP = {

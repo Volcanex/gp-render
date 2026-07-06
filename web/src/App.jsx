@@ -119,7 +119,7 @@ export default function App() {
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
       ) : null}
         {params.scene === 'materials' ? (
-          <MaterialRoom timeOfDay={params.timeOfDay} torch={torch} specs={specs} activeSlot={activeSlot} />
+          <MaterialRoom timeOfDay={params.timeOfDay} torch={torch} specs={specs} activeSlot={activeSlot} wallSeed={wallSeed} />
         ) : null}
         <CameraRig mode={params.moveMode} focalLength={params.focalLength} sceneId={params.scene} />
         <Suspense fallback={null}>
