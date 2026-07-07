@@ -84,7 +84,10 @@ export default function VisionPipeline({ params, clutTexture }) {
   // DOF runs on the clean render, before the sensor/dither stylisation
   // focusDistance/focusRange are in world units in this postprocessing version
   const dof = useMemo(
-    () => (params.dof ? new DepthOfFieldEffect(camera, { focusDistance: params.focusDistance, focusRange: 2, bokehScale: 1 }) : null),
+    // height caps the internal bokeh resolution: the blur is computed at
+    // ~480p and composited up, which reads identically for out-of-focus
+    // content at a fraction of the full-res convolution cost
+    () => (params.dof ? new DepthOfFieldEffect(camera, { focusDistance: params.focusDistance, focusRange: 2, bokehScale: 1, height: 480 }) : null),
     [params.dof, camera],
   )
 

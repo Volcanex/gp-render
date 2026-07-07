@@ -47,6 +47,10 @@ float noise2D(vec2 p) {
   return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
+// beyond this range 1/(1+0.15*d*d) falloff is negligible, so lights past it
+// are skipped inside the march rather than evaluated and discarded
+const float LIGHT_RANGE_SQ = 196.0; // 14.0^2
+
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
   if (uEnabled < 0.5) {
     outputColor = inputColor;
@@ -66,40 +70,51 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 rayDir = normalize((uCamWorld * vec4(viewRay, 0.0)).xyz);
   vec3 camPos = uCamWorld[3].xyz;
 
-  const int STEPS = 16; // steps * lights is the perf budget — tune these two knobs first
+  const int STEPS = 16; // steps * lights is the worst-case perf budget — actual cost is usually
+                        // lower thanks to range culling and early transmittance termination below
   float stepLen = rayLen / float(STEPS);
 
   float jitter = hash(gl_FragCoord.xy) * stepLen;
   float transmittance = 1.0;
   vec3 accum = vec3(0.0);
 
-  vec3 pos = camPos + rayDir * jitter;
-  for (int i = 0; i < STEPS; i++) {
-    // height falloff: fog pools over the lake (uFogBase) and thins with
-    // altitude over uFogHeight — looking up clears, looking across is thickest
-    float heightAtten = exp(-max(pos.y - uFogBase, 0.0) / uFogHeight);
-    // slow drifting patchiness, remapped from [0,1] noise to [0.55, 1.45]
-    vec2 wispUv = pos.xz * 0.06 + vec2(uTime * 0.03, uTime * 0.017);
-    float wisp = 0.55 + noise2D(wispUv) * 0.9;
-    float dLocal = uDensity * heightAtten * wisp;
-    float densityStep = dLocal * stepLen;
+  // uDensity ~0 means no fog anywhere (e.g. fully faded in/out) — skip the
+  // march entirely rather than accumulate 16 steps of zero contribution
+  if (uDensity > 0.0001) {
+    vec2 wispTimeOffset = vec2(uTime * 0.03, uTime * 0.017); // pos-independent, hoisted out of the loop
+    vec3 pos = camPos + rayDir * jitter;
+    for (int i = 0; i < STEPS; i++) {
+      // height falloff: fog pools over the lake (uFogBase) and thins with
+      // altitude over uFogHeight — looking up clears, looking across is thickest
+      float heightAtten = exp(-max(pos.y - uFogBase, 0.0) / uFogHeight);
+      // slow drifting patchiness, remapped from [0,1] noise to [0.55, 1.45]
+      vec2 wispUv = pos.xz * 0.06 + wispTimeOffset;
+      float wisp = 0.55 + noise2D(wispUv) * 0.9;
+      float dLocal = uDensity * heightAtten * wisp;
+      float densityStep = dLocal * stepLen;
 
-    transmittance *= exp(-densityStep);
+      transmittance *= exp(-densityStep);
 
-    for (int l = 0; l < MAX_LIGHTS; l++) {
-      if (l >= uLightCount) break;
-      vec3 toLight = uLightPos[l] - pos;
-      float d = length(toLight);
-      vec3 lightDir = toLight / max(d, 1e-5);
-      float falloff = 1.0 / (1.0 + 0.15 * d * d);
-      float mu = dot(rayDir, lightDir);
-      float phase = phaseHG(mu, uAnisotropy);
-      accum += uLightColor[l] * falloff * phase * densityStep * transmittance;
+      for (int l = 0; l < MAX_LIGHTS; l++) {
+        if (l >= uLightCount) break;
+        vec3 toLight = uLightPos[l] - pos;
+        float d2 = dot(toLight, toLight);
+        if (d2 > LIGHT_RANGE_SQ) continue; // falloff is negligible past here — skip the light entirely
+        float d = sqrt(d2);
+        vec3 lightDir = toLight / max(d, 1e-5);
+        float falloff = 1.0 / (1.0 + 0.15 * d2);
+        float mu = dot(rayDir, lightDir);
+        float phase = phaseHG(mu, uAnisotropy);
+        accum += uLightColor[l] * falloff * phase * densityStep * transmittance;
+      }
+
+      // no ambient self-emission: real fog doesn't glow, it only occludes and
+      // scatters actual lights — the scene's distance fog handles colour fade
+      pos += rayDir * stepLen;
+
+      // fully opaque fog ahead — further steps add negligible scatter, so stop marching
+      if (transmittance < 0.02) break;
     }
-
-    // no ambient self-emission: real fog doesn't glow, it only occludes and
-    // scatters actual lights — the scene's distance fog handles colour fade
-    pos += rayDir * stepLen;
   }
 
   // debug view: uEnabled == 2 shows reconstructed ray length as grayscale

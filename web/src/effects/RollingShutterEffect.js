@@ -23,7 +23,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   // secondary jello wobble: a sine that travels with readout progress, scaled
   // by how much the camera is actually moving so it doesn't wobble at rest
-  offset.x += sin(uv.y * 8.0 + rowPhase * 4.0) * length(uVelocity) * uWobble * uAmount;
+  if (uWobble > 0.0) {
+    offset.x += sin(uv.y * 8.0 + rowPhase * 4.0) * length(uVelocity) * uWobble * uAmount;
+  }
 
   outputColor = texture(inputBuffer, clamp(uv + offset, vec2(0.001), vec2(0.999)));
 }

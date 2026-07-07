@@ -15,11 +15,20 @@ vec3 flareThreshold(vec3 c) {
   return max(c - vec3(uThreshold), vec3(0.0)) / max(1.0 - uThreshold, 0.0001);
 }
 
+// Off-frame taps must contribute nothing rather than a clamped edge sample —
+// clamping would smear the border column/row into visible streaks.
+float uvValid(vec2 uv) {
+  return step(0.001, uv.x) * step(uv.x, 0.999) * step(0.001, uv.y) * step(uv.y, 0.999);
+}
+
 // small 3-tap blur so ghosts don't look like hard copies of the source pixel
 vec3 blurredThreshold(vec2 uv) {
-  vec3 c = flareThreshold(texture2D(inputBuffer, uv).rgb);
-  c += flareThreshold(texture2D(inputBuffer, uv + vec2(texelSize.x, texelSize.y) * 1.5).rgb);
-  c += flareThreshold(texture2D(inputBuffer, uv - vec2(texelSize.x, texelSize.y) * 1.5).rgb);
+  vec2 uvA = uv;
+  vec2 uvB = uv + vec2(texelSize.x, texelSize.y) * 1.5;
+  vec2 uvC = uv - vec2(texelSize.x, texelSize.y) * 1.5;
+  vec3 c = flareThreshold(texture2D(inputBuffer, uvA).rgb) * uvValid(uvA);
+  c += flareThreshold(texture2D(inputBuffer, uvB).rgb) * uvValid(uvB);
+  c += flareThreshold(texture2D(inputBuffer, uvC).rgb) * uvValid(uvC);
   return c / 3.0;
 }
 
@@ -48,7 +57,9 @@ vec3 ghosts(vec2 uv) {
     vec3 tint = mix(warm, cool, mod(float(i), 2.0));
     sum += c * falloff * tint;
   }
-  return sum;
+  // scaled down so a typical bright-pixel scene stays well under the energy
+  // cap applied in mainImage, rather than relying on the cap to do the work
+  return sum * 0.5;
 }
 
 vec3 anamorphicStreak(vec2 uv) {
@@ -58,11 +69,15 @@ vec3 anamorphicStreak(vec2 uv) {
   for (int i = 1; i <= TAP_COUNT; i++) {
     float w = 1.0 / (1.0 + float(i));
     float offset = float(i) * 3.0 * texelSize.x;
-    vec3 cPos = flareThreshold(texture2D(inputBuffer, uv + vec2(offset, 0.0)).rgb);
-    vec3 cNeg = flareThreshold(texture2D(inputBuffer, uv - vec2(offset, 0.0)).rgb);
+    vec2 uvPos = uv + vec2(offset, 0.0);
+    vec2 uvNeg = uv - vec2(offset, 0.0);
+    vec3 cPos = flareThreshold(texture2D(inputBuffer, uvPos).rgb) * uvValid(uvPos);
+    vec3 cNeg = flareThreshold(texture2D(inputBuffer, uvNeg).rgb) * uvValid(uvNeg);
     sum += (cPos + cNeg) * w;
   }
-  return sum * tint;
+  // scaled down so a typical bright-pixel scene stays well under the energy
+  // cap applied in mainImage, rather than relying on the cap to do the work
+  return sum * tint * 0.5;
 }
 
 vec3 halo(vec2 uv) {
@@ -77,9 +92,9 @@ vec3 halo(vec2 uv) {
   vec2 uvG = center + dir * radius;
   vec2 uvB = center + dir * radius * bShift;
 
-  float r = flareThreshold(texture2D(inputBuffer, uvR).rgb).r;
-  float g = flareThreshold(texture2D(inputBuffer, uvG).rgb).g;
-  float b = flareThreshold(texture2D(inputBuffer, uvB).rgb).b;
+  float r = flareThreshold(texture2D(inputBuffer, uvR).rgb).r * uvValid(uvR);
+  float g = flareThreshold(texture2D(inputBuffer, uvG).rgb).g * uvValid(uvG);
+  float b = flareThreshold(texture2D(inputBuffer, uvB).rgb).b * uvValid(uvB);
 
   float d = length(uv - center);
   float ring = 1.0 - clamp(abs(d - radius) * 12.0, 0.0, 1.0);
@@ -93,18 +108,24 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     return;
   }
 
-  vec3 result = inputColor.rgb;
+  vec3 added = vec3(0.0);
 
   if (uFlare > 0.0) {
-    result += ghosts(uv) * uFlare;
-    result += halo(uv) * uFlare * 0.5;
+    added += ghosts(uv) * uFlare;
+    added += halo(uv) * uFlare * 0.5;
   }
 
   if (uAnamorphic > 0.0) {
-    result += anamorphicStreak(uv) * uAnamorphic;
+    added += anamorphicStreak(uv) * uAnamorphic;
   }
 
-  outputColor = vec4(result, inputColor.a);
+  // Downstream MeteringPass reads this composited image for auto-exposure;
+  // unbounded flare energy would drag the whole frame's metered exposure
+  // down as more bright pixels enter view, so the total contribution is
+  // capped well below "wash out the image" regardless of scene brightness.
+  added = min(added, vec3(0.35));
+
+  outputColor = vec4(inputColor.rgb + added, inputColor.a);
 }
 `
 

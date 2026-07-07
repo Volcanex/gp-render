@@ -13,16 +13,28 @@ uniform float uIntensity;
 uniform float uRadius;
 uniform mat4 uProjInv;
 uniform bool uEnabled;
+uniform int uSamples;
 
 // readDepth()/getViewZ() come from the shared EffectMaterial template
 // (always declared, not gated behind the DEPTH attribute).
 
-vec3 getViewPosition(const in vec2 uv, const in float depth) {
-  float viewZ = getViewZ(depth);
-  vec4 clipPosition = vec4(vec3(uv, depth) * 2.0 - 1.0, 1.0);
+// Reconstruction reduced from a full mat4 * vec4 to a mat3 * vec3 + scaled
+// translate: (uProjInv * vec4(ndc * clipW, clipW)).xyz == mat3(uProjInv) *
+// (ndc * clipW) + uProjInv[3].xyz * clipW. The mat3/translate parts are
+// loop-invariant (same for every tap and the center pixel) so they're
+// hoisted out and passed in rather than rebuilt from uProjInv each call.
+vec3 reconstructViewPos(const in vec3 ndc, const in float viewZ, const in mat3 projInv3, const in vec3 projInvT) {
   float clipW = uProjInv[2][3] * viewZ + uProjInv[3][3];
-  clipPosition *= clipW;
-  return (uProjInv * clipPosition).xyz;
+  return projInv3 * (ndc * clipW) + projInvT * clipW;
+}
+
+// Interleaved gradient noise (Jimenez 2014, "Next Generation Post Processing
+// in Call of Duty: Advanced Warfare") — cheap per-pixel dither used to spin
+// the sample spiral so banding turns into noise the temporal/output dither
+// downstream can hide, letting the sample count drop from 12 to 8.
+float interleavedGradientNoise(const in vec2 p) {
+  const vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+  return fract(magic.z * fract(dot(p, magic.xy)));
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
@@ -37,7 +49,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     return;
   }
 
-  vec3 viewPos = getViewPosition(uv, depth);
+  mat3 projInv3 = mat3(uProjInv);
+  vec3 projInvT = uProjInv[3].xyz;
+
+  float viewZ0 = getViewZ(depth);
+  vec3 viewPos = reconstructViewPos(vec3(uv, depth) * 2.0 - 1.0, viewZ0, projInv3, projInvT);
 
   vec3 dPdx = dFdx(viewPos);
   vec3 dPdy = dFdy(viewPos);
@@ -46,14 +62,20 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float viewZ = -viewPos.z;
   float screenRadius = uRadius / max(viewZ, 0.001);
 
-  const int SAMPLES = 12;
+  const int MAX_SAMPLES = 12;
   const float GOLDEN_ANGLE = 2.39996323;
   const float BIAS = 0.02;
+  const float TWO_PI = 6.28318531;
+
+  int sampleCount = clamp(uSamples, 1, MAX_SAMPLES);
+  float baseAngle = interleavedGradientNoise(gl_FragCoord.xy) * TWO_PI;
 
   float occlusion = 0.0;
-  for (int i = 0; i < SAMPLES; i++) {
-    float t = (float(i) + 0.5) / float(SAMPLES);
-    float angle = float(i) * GOLDEN_ANGLE;
+  for (int i = 0; i < MAX_SAMPLES; i++) {
+    if (i >= sampleCount) break;
+
+    float t = (float(i) + 0.5) / float(sampleCount);
+    float angle = baseAngle + float(i) * GOLDEN_ANGLE;
     float r = sqrt(t) * screenRadius;
     vec2 offset = vec2(cos(angle), sin(angle)) * r;
 
@@ -63,7 +85,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     }
 
     float tapDepth = readDepth(tapUv);
-    vec3 tapViewPos = getViewPosition(tapUv, tapDepth);
+    float tapViewZ = getViewZ(tapDepth);
+    vec3 tapViewPos = reconstructViewPos(vec3(tapUv, tapDepth) * 2.0 - 1.0, tapViewZ, projInv3, projInvT);
 
     vec3 toTap = tapViewPos - viewPos;
     float dist = length(toTap);
@@ -74,7 +97,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     occlusion += hemisphere * step(BIAS, closerBy) * rangeCheck;
   }
 
-  float ao = pow(1.0 - occlusion / float(SAMPLES), 2.0);
+  float ao = pow(1.0 - occlusion / float(sampleCount), 2.0);
   outputColor = vec4(inputColor.rgb * mix(1.0, ao, uIntensity), inputColor.a);
 }
 `
@@ -88,6 +111,7 @@ export class DepthAOEffect extends Effect {
         ['uRadius', new Uniform(0.8)],
         ['uProjInv', new Uniform(new Matrix4())],
         ['uEnabled', new Uniform(false)],
+        ['uSamples', new Uniform(8)],
       ]),
     })
   }
@@ -99,6 +123,10 @@ export class DepthAOEffect extends Effect {
 
   setRadius(radius) {
     this.uniforms.get('uRadius').value = Math.max(0.01, radius)
+  }
+
+  setSamples(samples) {
+    this.uniforms.get('uSamples').value = Math.max(1, Math.min(12, Math.round(samples)))
   }
 
   updateCamera(camera) {

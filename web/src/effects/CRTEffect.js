@@ -53,23 +53,31 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     sampleUv = warped * 0.5 + 0.5;
   }
 
-  // Rounded-corner bezel falloff: hard black once sampleUv leaves [0,1],
-  // rounded near the corners so curvature reads as glass, not a crop.
+  // Outside [0,1] on any side: never sample inputBuffer (it's a clamped
+  // texture, so an out-of-range sampleUv reads back the edge column/row
+  // instead of black). Bail to pure black symmetrically on all four sides.
+  if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
+    outputColor = vec4(0.0, 0.0, 0.0, inputColor.a);
+    return;
+  }
+
+  // Rounded-corner bezel falloff for samples still inside [0,1], symmetric
+  // in sampleUv so all four edges/corners behave identically.
   vec2 p = abs(sampleUv - 0.5) * 2.0;
   float cornerRadius = 0.25 * uCurvature;
   vec2 q = p - (1.0 - cornerRadius);
   float roundedDist = length(max(q, 0.0)) - cornerRadius;
-  float bezelMask = 1.0 - smoothstep(0.0, 0.02, roundedDist);
+  float bezelMask = 1.0 - smoothstep(0.0, 0.004, roundedDist);
 
   vec3 color = texture2D(inputBuffer, sampleUv).rgb * bezelMask;
 
-  // Scanlines: one dark line per 2 output px, fixed to screen space (not
-  // warped by curvature — the raster is physically flat on the tube face).
-  float scanPhase = cos(uv.y * resolution.y * 3.14159265 * 2.0 / 2.0);
+  // Scanlines and phosphor mask are evaluated in the distorted (sampleUv)
+  // space so the pattern follows the curved image rather than staying flat.
+  float scanPhase = cos(sampleUv.y * resolution.y * 3.14159265 * 2.0 / 2.0);
   float scan = 1.0 - uScanIntensity * uAmount * (0.5 + 0.5 * scanPhase);
   color *= scan;
 
-  color = phosphorMask(color, uv, uAmount);
+  color = phosphorMask(color, sampleUv, uAmount);
 
   // Compensate for scanline/mask darkening so switching the CRT on doesn't
   // just dim the image.
