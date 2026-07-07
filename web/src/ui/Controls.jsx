@@ -303,6 +303,10 @@ export function useSensorParams() {
         options: ['grille', 'slot', 'dot'],
         hint: 'phosphor mask pattern',
       },
+      crtFlicker: {
+        value: preset.crtFlicker ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'CRT refresh-band flicker — 0 = temporally rock-solid screen',
+      },
     }),
     Dither: folder({
       ditherMode: {

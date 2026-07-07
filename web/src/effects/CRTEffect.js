@@ -10,6 +10,7 @@ uniform float uCurvature;
 uniform int uMaskType;
 uniform float uScanIntensity;
 uniform float uTime;
+uniform float uFlicker;
 
 vec3 phosphorMask(vec3 color, vec2 uv, float amount) {
   float x = uv.x * resolution.x;
@@ -84,10 +85,12 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   color *= 1.0 / (1.0 - 0.3 * uAmount);
 
   // Refresh band: faint bright band sweeping down the tube every ~2.5s.
+  // Gated entirely by uFlicker — at 0 the image is temporally stable
+  // (mask/scanlines/curvature only, no per-frame animation).
   float bandPos = fract(uTime / 2.5);
   float bandDist = abs(uv.y - bandPos);
   bandDist = min(bandDist, 1.0 - bandDist);
-  float band = smoothstep(0.05, 0.0, bandDist) * 0.03 * uAmount;
+  float band = smoothstep(0.05, 0.0, bandDist) * 0.05 * uFlicker * uAmount;
   color += band;
 
   outputColor = vec4(color, inputColor.a);
@@ -105,6 +108,7 @@ export class CRTEffect extends Effect {
         ['uMaskType', new Uniform(MASK_IDS.grille)],
         ['uScanIntensity', new Uniform(1)],
         ['uTime', new Uniform(0)],
+        ['uFlicker', new Uniform(0)],
       ]),
     })
   }
@@ -115,6 +119,7 @@ export class CRTEffect extends Effect {
     if (params.crtMask !== undefined) {
       this.uniforms.get('uMaskType').value = MASK_IDS[params.crtMask] ?? MASK_IDS.grille
     }
+    this.uniforms.get('uFlicker').value = Math.max(0, Math.min(1, params.crtFlicker ?? 0))
   }
 
   setTime(t) {
