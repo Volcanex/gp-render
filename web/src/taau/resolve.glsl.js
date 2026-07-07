@@ -170,32 +170,30 @@ vec3 sampleCatmullRom5Tap(sampler2D tex, vec2 uv, vec2 texSize) {
 
 void main() {
   vec2 renderTexel = 1.0 / uRenderSize;
+  ivec2 renderSizeI = ivec2(uRenderSize);
 
   // -------------------------------------------------------------------
-  // Jitter cancellation. tCurrent/tCurrentDepth were rendered through a
-  // PROJECTION shifted by uJitter (see jitter.js applyJitter), so at a
-  // fixed uv the content itself moves every frame — sampling at raw vUv
-  // drags the whole image along with the jitter, which is exactly the
-  // sub-pixel wobble this fixes.
-  //
-  // Sign derivation (applyJitter adds e8 += 2*jx/renderWidth,
-  // e9 += 2*jy/renderHeight to the projection matrix's column-major
-  // elements[8]/[9], i.e. m02/m12): clip.x = ... + m02 * view.z, and for
-  // a standard perspective matrix w = -view.z, so the added term
-  // contributes clip.x += e8 * view.z = -e8 * w. Dividing by w, that's a
-  // flat NDC.x shift of -e8 = -2*jx/renderWidth for every point in the
-  // frame, i.e. a uv shift of -jx/renderWidth. So a world point that
-  // maps to uv U under the UNJITTERED projection lands at
-  // U - uJitter/uRenderSize in the actual jittered render. To read the
-  // jittered textures at the location matching this output pixel's
-  // unjittered position vUv, sample at vUv MINUS that same offset:
-  //   unjitterUv = vUv - uJitter / uRenderSize
-  // (Acceptance test: static camera => uJitter varies frame to frame,
-  // but every world point's rendered content is pulled back to a fixed
-  // uv before use, so the output stops moving with it.)
-  vec2 unjitterUv = clamp(vUv - uJitter / uRenderSize, vec2(0.5) * renderTexel, vec2(1.0) - vec2(0.5) * renderTexel);
-
-  vec3 currentColor = texture(tCurrent, unjitterUv).rgb;
+  // Core upsampling insight (FSR2 ffx_fsr2_upsample.h): NEVER resample
+  // the current frame. tCurrent was rendered through a projection
+  // shifted by uJitter (see jitter.js applyJitter), so its samples don't
+  // sit at texel centers in "true", unjittered scene space — but that's
+  // fine, because reconstruction doesn't need to move them there. It
+  // needs two honest, matching things instead: the RAW sample (no
+  // filtering) and the TRUE location that sample was actually taken at.
+  // The latter is exactly what the sampleConfidence Gaussian below
+  // computes, from this same uJitter. An earlier version of this shader
+  // instead resampled tCurrent at a "jitter-cancelling" sub-pixel uv
+  // offset via bilinear texture() — geometrically reasonable-sounding,
+  // but every such fetch is a bilinear blend of neighbouring texels, and
+  // that blur gets deposited into history and compounds every frame it
+  // accumulates, converging to a ~1px tent blur. That is precisely why
+  // TAAU at ratio 1:1 came out blurrier than TAAU-off: the reprojection
+  // math was correct, but the thing being reprojected had already been
+  // pre-filtered. Fix: texelFetch the raw texel; let sampleConfidence
+  // carry the sub-pixel location information instead of the color read.
+  // -------------------------------------------------------------------
+  ivec2 texelCoord = clamp(ivec2(vUv * uRenderSize), ivec2(0), renderSizeI - ivec2(1));
+  vec3 currentColor = texelFetch(tCurrent, texelCoord, 0).rgb;
 
   // First frame (or a forced reset): nothing to reproject against yet.
   if (uHistoryValid < 0.5) {
@@ -205,19 +203,22 @@ void main() {
 
   // -------------------------------------------------------------------
   // 1. Upsample confidence (FSR2 ffx_fsr2_upsample.h): how close is this
-  // output pixel's center to an actual jittered SAMPLE LOCATION this
-  // frame? This lives in the ORIGINAL (non-cancelled) space on purpose —
-  // the true render samples really were taken at the jittered grid
-  // positions, and that's what should drive how much we trust them; only
-  // the texture READS above get jitter-cancelled, not this distance.
-  // Render and output share the same normalized [0,1] frame, so
-  // vUv * uRenderSize gives this output pixel's position in continuous
-  // render-pixel units; sample centers sit on the grid k + 0.5 + jitter.
+  // output pixel's center to the TRUE location of the raw sample fetched
+  // above? The raw texel at texelCoord was rendered at grid position
+  // texelCoord + 0.5, shifted by this frame's jitter — so its honest
+  // location is (texelCoord + 0.5 + uJitter), which is what this
+  // distance measures against the output pixel's own (unjittered)
+  // position. Render and output share the same normalized [0,1] frame,
+  // so vUv * uRenderSize gives this output pixel's position in
+  // continuous render-pixel units.
   // -------------------------------------------------------------------
   vec2 renderPos = vUv * uRenderSize;
-  vec2 gridIndex = floor(renderPos - 0.5 - uJitter + 0.5);
-  vec2 nearestSamplePos = gridIndex + 0.5 + uJitter;
-  vec2 sampleDelta = renderPos - nearestSamplePos;
+  // texelCoord is exactly the texel currentColor was fetched from above —
+  // its true sample location must be derived from that SAME texel, not a
+  // separately re-derived "nearest sample" search, or the raw color and
+  // its confidence weight could end up describing two different samples.
+  vec2 trueSamplePos = vec2(texelCoord) + 0.5 + uJitter;
+  vec2 sampleDelta = renderPos - trueSamplePos;
   float sampleDist2 = dot(sampleDelta, sampleDelta);
   // uKernelSharpness replaces FSR2's fixed 2.9 falloff constant: higher
   // means only output pixels very close to a true jittered sample trust
@@ -231,23 +232,26 @@ void main() {
   // approach, used in FSR2's reprojection pass): reproject using the
   // depth/position of whichever tap is nearest the camera, not the
   // center tap, so thin foreground edges get correct reprojection
-  // instead of inheriting background motion. Reads are jitter-cancelled
-  // (unjitterUv) so the dilated position lines up with uCurrInvVP, which
-  // is explicitly the UNJITTERED inverse view-projection.
+  // instead of inheriting background motion. Raw texelFetch, same
+  // reasoning as the current-color fetch above (never resample depth
+  // either). The resulting texel-center uv ignores this frame's
+  // sub-pixel jitter — a tolerable approximation for reprojection, since
+  // uCurrInvVP is itself the unjittered inverse view-projection and only
+  // needs a same-pixel depth estimate, not a sub-pixel-exact one.
   // -------------------------------------------------------------------
   float closestDepth = 1.0;
-  vec2 closestOffset = vec2(0.0);
+  ivec2 closestTexel = texelCoord;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
-      vec2 offset = vec2(float(x), float(y)) * renderTexel;
-      float d = texture(tCurrentDepth, unjitterUv + offset).r;
+      ivec2 tapCoord = clamp(texelCoord + ivec2(x, y), ivec2(0), renderSizeI - ivec2(1));
+      float d = texelFetch(tCurrentDepth, tapCoord, 0).r;
       if (d < closestDepth) {
         closestDepth = d;
-        closestOffset = offset;
+        closestTexel = tapCoord;
       }
     }
   }
-  vec2 dilatedUv = unjitterUv + closestOffset;
+  vec2 dilatedUv = (vec2(closestTexel) + 0.5) * renderTexel;
 
   // -------------------------------------------------------------------
   // 3. Reprojection: unproject the dilated depth with this frame's
@@ -298,16 +302,16 @@ void main() {
   // 5. Neighbourhood statistics (Salvi 2016): mean and stddev of a 3x3
   // YCoCg neighbourhood around the *undilated* current sample, used to
   // build a variance-based clip box (mean +/- uVarianceGamma * stddev)
-  // instead of a hard min/max clamp. Reads are jitter-cancelled
-  // (unjitterUv), same reasoning as the current-color sample above —
-  // otherwise the box itself would drift with the jitter every frame.
+  // instead of a hard min/max clamp. Raw texelFetch, same reasoning as
+  // the current-color fetch above — a filtered read here would make the
+  // clip box itself carry the same compounding blur.
   // -------------------------------------------------------------------
   vec3 moment1 = vec3(0.0);
   vec3 moment2 = vec3(0.0);
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
-      vec2 offset = vec2(float(x), float(y)) * renderTexel;
-      vec3 tapYCoCg = rgb2ycocg(texture(tCurrent, unjitterUv + offset).rgb);
+      ivec2 tapCoord = clamp(texelCoord + ivec2(x, y), ivec2(0), renderSizeI - ivec2(1));
+      vec3 tapYCoCg = rgb2ycocg(texelFetch(tCurrent, tapCoord, 0).rgb);
       moment1 += tapYCoCg;
       moment2 += tapYCoCg * tapYCoCg;
     }
