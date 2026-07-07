@@ -1,5 +1,7 @@
 // Pixelate + quantise + dither + palette ramp. Runs after SensorEffect
 // (exposure/grain) and before EdgeOutlineEffect in the composed chain.
+// colorMode 'true' is full 24-bit passthrough — no pixelate/dither/quantise,
+// grain and exposure upstream and the outline downstream still apply.
 import { Uniform, Vector2 } from 'three'
 import { Effect } from 'postprocessing'
 
@@ -7,7 +9,7 @@ const DITHER_MODES = {
   none: 0, bluenoise: 1, bayer8: 2, white: 3,
   bayer4: 4, ign: 5, halftone: 6, lines: 7, edapprox: 8,
 }
-const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2 }
+const COLOR_MODES = { ramp: 0, rgb: 1, rgb332: 2, true: 3 }
 
 const fragmentShader = /* glsl */ `
 uniform sampler2D uNoise;
@@ -43,6 +45,11 @@ float hash21(vec2 p) {
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  if (uColorMode == 3) {
+    outputColor = inputColor;
+    return;
+  }
+
   vec2 sampleUv = uv;
   if (uPixelSize > 1.0) {
     vec2 cellUv = uPixelSize * texelSize;

@@ -269,7 +269,11 @@ export function useSensorParams() {
       isoAgitation: { value: preset.isoAgitation },
     }),
     Look: folder({
-      colorMode: { value: preset.colorMode, options: ['rgb332', 'rgb', 'ramp'] },
+      colorMode: {
+        value: preset.colorMode,
+        options: ['true', 'rgb332', 'rgb', 'ramp'],
+        hint: 'true = full 24-bit colour, no quantisation or dithering',
+      },
       clutPreset: {
         value: preset.clutPreset,
         options: Object.fromEntries(

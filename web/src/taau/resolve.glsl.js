@@ -270,10 +270,28 @@ void main() {
   // out by repeated resampling every frame. uHistoryFilter exposes the
   // plain-bilinear fetch too, since Catmull-Rom's sharper reconstruction
   // can ring on some content — the tuning surface for that tradeoff.
+  //
+  // Static-exact fetch (anti-blur): ANY resampling filter — Catmull-Rom
+  // or bilinear — is a low-pass when the sample point doesn't land
+  // exactly on a texel center, and it gets reapplied every single frame
+  // history accumulates. On a static camera the reprojection keeps
+  // landing at the same sub-texel offset, so that low-pass compounds
+  // frame after frame and the image slowly blurs even though nothing is
+  // moving — the classic "sharpest while panning, soft when still" TAA
+  // symptom. When the reprojection delta is negligible (sub-1/20th of an
+  // output pixel), skip the filtered fetch entirely and take a single
+  // plain texture tap at vUv: with bilinear sampling exactly on a texel
+  // center that degenerates to reading the stored texel unfiltered, so a
+  // still camera stops losing sharpness to repeated resampling and is at
+  // least as crisp as a moving one.
   // -------------------------------------------------------------------
-  vec3 historyColor = uHistoryFilter == 1
-    ? sampleCatmullRom5Tap(tHistory, prevUv, uOutputSize)
-    : texture(tHistory, prevUv).rgb;
+  vec2 motionPx = (prevUv - vUv) * uOutputSize;
+  bool reprojectionStatic = dot(motionPx, motionPx) < 0.0025;
+  vec3 historyColor = reprojectionStatic
+    ? texture(tHistory, vUv).rgb
+    : (uHistoryFilter == 1
+        ? sampleCatmullRom5Tap(tHistory, prevUv, uOutputSize)
+        : texture(tHistory, prevUv).rgb);
   vec3 historyYCoCg = rgb2ycocg(historyColor);
 
   // -------------------------------------------------------------------
