@@ -44,18 +44,27 @@ function Panel({ slot, maps, active, registerMesh }) {
         </mesh>
       )}
       <mesh ref={meshRef} castShadow receiveShadow>
-        <planeGeometry args={[PANEL_SIZE, PANEL_SIZE]} />
         {maps ? (
-          <meshStandardMaterial
-            key="baked"
-            color="#ffffff"
-            map={maps.albedo}
-            roughnessMap={maps.roughness}
-            roughness={1.0}
-            normalMap={maps.normal}
-          />
+          <>
+            {/* subdivided so the height map actually displaces geometry, not just shades it */}
+            <planeGeometry args={[PANEL_SIZE, PANEL_SIZE, 96, 96]} />
+            <meshStandardMaterial
+              key="baked"
+              color="#ffffff"
+              map={maps.albedo}
+              roughnessMap={maps.roughness}
+              roughness={1.0}
+              normalMap={maps.normal}
+              displacementMap={maps.height ?? null}
+              displacementScale={0.12}
+              displacementBias={-0.06}
+            />
+          </>
         ) : (
-          <meshStandardMaterial key="placeholder" color="#20242a" roughness={0.9} />
+          <>
+            <planeGeometry args={[PANEL_SIZE, PANEL_SIZE]} />
+            <meshStandardMaterial key="placeholder" color="#20242a" roughness={0.9} />
+          </>
         )}
       </mesh>
     </group>

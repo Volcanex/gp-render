@@ -66,7 +66,7 @@ const BLEND_MAP = {
 
 const MAX_LAYERS = 8
 
-const MODE = { albedo: 0, roughness: 1, normal: 2 }
+const MODE = { albedo: 0, roughness: 1, normal: 2, height: 3 }
 
 function makeFullscreenTriangle(material) {
   const geometry = new BufferGeometry()
@@ -156,14 +156,20 @@ void main() {
     return;
   }
 
-  float hL = heightAt(uv - vec2(uTexel.x, 0.0));
-  float hR = heightAt(uv + vec2(uTexel.x, 0.0));
-  float hD = heightAt(uv - vec2(0.0, uTexel.y));
-  float hU = heightAt(uv + vec2(0.0, uTexel.y));
-  float dhdx = (hR - hL) / (2.0 * uTexel.x);
-  float dhdy = (hU - hD) / (2.0 * uTexel.y);
-  vec3 n = normalize(vec3(-dhdx * uNormalStrength, -dhdy * uNormalStrength, 1.0)) * 0.5 + 0.5;
-  fragColor = vec4(n, 1.0);
+  if (uMode == 2) {
+    float hL = heightAt(uv - vec2(uTexel.x, 0.0));
+    float hR = heightAt(uv + vec2(uTexel.x, 0.0));
+    float hD = heightAt(uv - vec2(0.0, uTexel.y));
+    float hU = heightAt(uv + vec2(0.0, uTexel.y));
+    float dhdx = (hR - hL) / (2.0 * uTexel.x);
+    float dhdy = (hU - hD) / (2.0 * uTexel.y);
+    vec3 n = normalize(vec3(-dhdx * uNormalStrength, -dhdy * uNormalStrength, 1.0)) * 0.5 + 0.5;
+    fragColor = vec4(n, 1.0);
+    return;
+  }
+
+  float h = heightAt(uv);
+  fragColor = vec4(h, h, h, 1.0);
 }
 `
 
@@ -282,11 +288,14 @@ export class MaterialBaker {
     roughnessRT.texture.colorSpace = NoColorSpace
     const normalRT = makeRenderTarget(size)
     normalRT.texture.colorSpace = NoColorSpace
+    const heightRT = makeRenderTarget(size)
+    heightRT.texture.colorSpace = NoColorSpace
 
     const passes = [
       [MODE.albedo, albedoRT],
       [MODE.roughness, roughnessRT],
       [MODE.normal, normalRT],
+      [MODE.height, heightRT],
     ]
 
     for (const [mode, rt] of passes) {
@@ -301,10 +310,12 @@ export class MaterialBaker {
       albedo: albedoRT.texture,
       roughness: roughnessRT.texture,
       normal: normalRT.texture,
+      height: heightRT.texture,
       dispose() {
         albedoRT.dispose()
         roughnessRT.dispose()
         normalRT.dispose()
+        heightRT.dispose()
       },
     }
   }

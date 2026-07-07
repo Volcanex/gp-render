@@ -17,6 +17,11 @@ import { EdgeOutlineEffect } from './EdgeOutlineEffect.js'
 import { TAAUPass, RCASEffect } from '../taau/index.js'
 import { RollingShutterEffect } from './RollingShutterEffect.js'
 import { MotionBlurEffect } from './MotionBlurEffect.js'
+import { DepthAOEffect } from './DepthAOEffect.js'
+import { LensFlareEffect } from './LensFlareEffect.js'
+import { CRTEffect } from './CRTEffect.js'
+import { FilmArtifactsEffect } from './FilmArtifactsEffect.js'
+import { LightShaftsEffect } from './LightShaftsEffect.js'
 import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { MeteringPass, AutoExposureController } from './metering.js'
@@ -122,6 +127,35 @@ export default function VisionPipeline({ params, clutTexture }) {
   }, [volFog, params.fogDensity, params.fogHeight])
 
 
+  // Detail/character systems — each exists only while its dials are up
+  const aoFx = useMemo(
+    () => (params.ao && params.aoStrength > 0 ? new DepthAOEffect() : null),
+    [params.ao && params.aoStrength > 0],
+  )
+  useEffect(() => () => { if (aoFx) aoFx.dispose?.() }, [aoFx])
+  const flareFx = useMemo(
+    () => (params.flare > 0 || params.anamorphic > 0 ? new LensFlareEffect() : null),
+    [params.flare > 0 || params.anamorphic > 0],
+  )
+  useEffect(() => () => { if (flareFx) flareFx.dispose?.() }, [flareFx])
+  const filmFx = useMemo(
+    () => (params.halation > 0 || params.gateWeave > 0 || params.dust > 0 ? new FilmArtifactsEffect() : null),
+    [params.halation > 0 || params.gateWeave > 0 || params.dust > 0],
+  )
+  useEffect(() => () => { if (filmFx) filmFx.dispose?.() }, [filmFx])
+  const crtFx = useMemo(
+    () => (params.crt > 0 ? new CRTEffect() : null),
+    [params.crt > 0],
+  )
+  useEffect(() => () => { if (crtFx) crtFx.dispose?.() }, [crtFx])
+  // god rays need a sun: titan is overcast, raymarch draws its own sky
+  const raysFx = useMemo(
+    () => (params.godRays > 0 && params.scene !== 'titan' ? new LightShaftsEffect() : null),
+    [params.godRays > 0 && params.scene !== 'titan'],
+  )
+  useEffect(() => () => { if (raysFx) raysFx.dispose?.() }, [raysFx])
+  const sunScratch = useRef({ dir: new THREE.Vector3(), pos: new THREE.Vector3(), fwd: new THREE.Vector3(), col: new THREE.Color() })
+
   // Rolling shutter (geometric readout skew, no blur) and optional camera
   // motion blur — both created only while their amount is non-zero
   const rollFx = useMemo(
@@ -179,6 +213,11 @@ export default function VisionPipeline({ params, clutTexture }) {
     sharpen.setParams(params)
     if (rollFx) rollFx.setParams(params)
     if (blurFx) blurFx.setParams(params)
+    if (aoFx) aoFx.setParams(params)
+    if (flareFx) flareFx.setParams(params)
+    if (filmFx) filmFx.setParams(params)
+    if (crtFx) crtFx.setParams(params)
+    if (raysFx) raysFx.setParams(params)
     if (errorDiffusion) {
       edPass.setParams(params)
       const d = ramp.image.data
@@ -208,6 +247,23 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (volFog) {
       volFog.updateCamera(camera)
       volFog.setTime(state.clock.elapsedTime)
+    }
+    if (aoFx) aoFx.updateCamera(camera)
+    if (filmFx) filmFx.setTime(state.clock.elapsedTime)
+    if (crtFx) crtFx.setTime(state.clock.elapsedTime)
+    if (raysFx) {
+      // sun direction from time-of-day (same curve the scenes use), projected
+      // to screen uv; visibility fades with the angle to the camera forward
+      const { dir, pos, fwd, col } = sunScratch.current
+      const elev = Math.sin(((params.timeOfDay - 6) / 12) * Math.PI)
+      const azim = (params.timeOfDay / 24) * Math.PI * 2 - Math.PI / 2
+      dir.set(Math.cos(azim), Math.max(0.02, elev), Math.sin(azim)).normalize()
+      camera.getWorldDirection(fwd)
+      const facing = fwd.dot(dir)
+      pos.copy(camera.position).addScaledVector(dir, 200).project(camera)
+      const vis = elev > 0 ? THREE.MathUtils.clamp(facing, 0, 1) : 0
+      col.setRGB(1.0, 0.75 + 0.2 * elev, 0.5 + 0.4 * elev)
+      raysFx.updateSun(pos.x * 0.5 + 0.5, pos.y * 0.5 + 0.5, facing > 0 ? vis : 0, col)
     }
 
     // camera angular velocity in uv units/frame (rolling shutter) and
@@ -327,20 +383,25 @@ export default function VisionPipeline({ params, clutTexture }) {
   return (
     <EffectComposer ref={composerRef} depthBuffer multisampling={0}>
       <primitive object={taau} />
+      {aoFx ? <primitive object={aoFx} /> : null}
       {picker ? <primitive object={picker} /> : null}
       {dof ? <primitive object={dof} /> : null}
       {volFog ? <primitive object={volFog} /> : null}
+      {raysFx ? <primitive object={raysFx} /> : null}
       {rollFx ? <primitive object={rollFx} /> : null}
       {blurFx ? <primitive object={blurFx} /> : null}
       {bloom ? <primitive object={bloom} /> : null}
+      {flareFx ? <primitive object={flareFx} /> : null}
       {chromAb ? <primitive object={chromAb} /> : null}
       {vignetteFx ? <primitive object={vignetteFx} /> : null}
       {smaa ? <primitive object={smaa} /> : null}
       <primitive object={meter} />
       <primitive object={sensor} />
+      {filmFx ? <primitive object={filmFx} /> : null}
       {errorDiffusion ? <primitive object={edPass} /> : <primitive object={vision} />}
       <primitive object={outline} />
       <primitive object={sharpen} />
+      {crtFx ? <primitive object={crtFx} /> : null}
     </EffectComposer>
   )
 }

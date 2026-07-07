@@ -1,0 +1,115 @@
+// CRT display simulation — the device the dithered feed is viewed on, so it
+// runs last in the chain, after quantisation. Barrel distortion + bezel,
+// scanlines, phosphor mask and a faint refresh-band shimmer.
+import { Effect } from 'postprocessing'
+import { Uniform } from 'three'
+
+const fragmentShader = /* glsl */ `
+uniform float uAmount;
+uniform float uCurvature;
+uniform int uMaskType;
+uniform float uScanIntensity;
+uniform float uTime;
+
+vec3 phosphorMask(vec3 color, vec2 uv, float amount) {
+  float x = uv.x * resolution.x;
+  vec3 boosted;
+
+  if (uMaskType == 1) {
+    // slot mask: RGB triads, alternate rows offset by 1.5 columns
+    float y = uv.y * resolution.y;
+    float rowOffset = step(1.0, mod(floor(y / 2.0), 2.0)) * 1.5;
+    int idx = int(mod(x + rowOffset, 3.0));
+    vec3 gain = vec3(0.85);
+    if (idx == 0) gain.r = 1.15; else if (idx == 1) gain.g = 1.15; else gain.b = 1.15;
+    boosted = color * gain;
+  } else if (uMaskType == 2) {
+    // shadow dot: 2D dot cells, brighter at cell centre
+    vec2 cell = fract(vec2(x, uv.y * resolution.y) / 3.0) - 0.5;
+    float d = smoothstep(0.5, 0.2, length(cell));
+    boosted = color * mix(0.85, 1.15, d);
+  } else {
+    // aperture grille: vertical RGB stripes
+    int idx = int(mod(x, 3.0));
+    vec3 gain = vec3(0.85);
+    if (idx == 0) gain.r = 1.15; else if (idx == 1) gain.g = 1.15; else gain.b = 1.15;
+    boosted = color * gain;
+  }
+
+  return mix(color, boosted, amount);
+}
+
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  if (uAmount <= 0.0) {
+    outputColor = inputColor;
+    return;
+  }
+
+  vec2 cc = (uv - 0.5) * 2.0;
+  vec2 sampleUv = uv;
+  if (uCurvature > 0.0) {
+    float dist2 = dot(cc, cc);
+    vec2 warped = cc * (1.0 + uCurvature * dist2);
+    sampleUv = warped * 0.5 + 0.5;
+  }
+
+  // Rounded-corner bezel falloff: hard black once sampleUv leaves [0,1],
+  // rounded near the corners so curvature reads as glass, not a crop.
+  vec2 p = abs(sampleUv - 0.5) * 2.0;
+  float cornerRadius = 0.25 * uCurvature;
+  vec2 q = p - (1.0 - cornerRadius);
+  float roundedDist = length(max(q, 0.0)) - cornerRadius;
+  float bezelMask = 1.0 - smoothstep(0.0, 0.02, roundedDist);
+
+  vec3 color = texture2D(inputBuffer, sampleUv).rgb * bezelMask;
+
+  // Scanlines: one dark line per 2 output px, fixed to screen space (not
+  // warped by curvature — the raster is physically flat on the tube face).
+  float scanPhase = cos(uv.y * resolution.y * 3.14159265 * 2.0 / 2.0);
+  float scan = 1.0 - uScanIntensity * uAmount * (0.5 + 0.5 * scanPhase);
+  color *= scan;
+
+  color = phosphorMask(color, uv, uAmount);
+
+  // Compensate for scanline/mask darkening so switching the CRT on doesn't
+  // just dim the image.
+  color *= 1.0 / (1.0 - 0.3 * uAmount);
+
+  // Refresh band: faint bright band sweeping down the tube every ~2.5s.
+  float bandPos = fract(uTime / 2.5);
+  float bandDist = abs(uv.y - bandPos);
+  bandDist = min(bandDist, 1.0 - bandDist);
+  float band = smoothstep(0.05, 0.0, bandDist) * 0.03 * uAmount;
+  color += band;
+
+  outputColor = vec4(color, inputColor.a);
+}
+`
+
+const MASK_IDS = { grille: 0, slot: 1, dot: 2 }
+
+export class CRTEffect extends Effect {
+  constructor() {
+    super('CRTEffect', fragmentShader, {
+      uniforms: new Map([
+        ['uAmount', new Uniform(0)],
+        ['uCurvature', new Uniform(0)],
+        ['uMaskType', new Uniform(MASK_IDS.grille)],
+        ['uScanIntensity', new Uniform(1)],
+        ['uTime', new Uniform(0)],
+      ]),
+    })
+  }
+
+  setParams(params) {
+    this.uniforms.get('uAmount').value = params.crt ? Math.max(0, Math.min(1, params.crt)) : 0
+    this.uniforms.get('uCurvature').value = params.crtCurve ? Math.max(0, Math.min(0.35, params.crtCurve)) : 0
+    if (params.crtMask !== undefined) {
+      this.uniforms.get('uMaskType').value = MASK_IDS[params.crtMask] ?? MASK_IDS.grille
+    }
+  }
+
+  setTime(t) {
+    this.uniforms.get('uTime').value = t
+  }
+}

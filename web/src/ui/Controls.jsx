@@ -111,7 +111,7 @@ export function useSensorParams() {
   }), [userPresets])
 
   const {
-    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
+    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, ao, aoStrength, fogDensity, fogHeight, godRays,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
   } = useControls({
     World: folder({
@@ -127,11 +127,22 @@ export function useSensorParams() {
         value: 4.5, min: 1, max: 12, step: 0.5,
         hint: 'how high the fog pools',
       },
+      godRays: {
+        value: 0.25, min: 0, max: 1, step: 0.05,
+        hint: 'screen-space crepuscular rays from the sun — strongest at low sun angles',
+      },
     }),
     Display: folder({
       taauEnabled: {
         value: true,
         hint: 'temporal upscaling on/off — off = plain render at output resolution, for A/B comparison',
+      },
+      ao: {
+        value: true,
+        hint: 'depth-based ambient occlusion — soft contact shading, works with the temporal upscaler',
+      },
+      aoStrength: {
+        value: 0.5, min: 0, max: 1, step: 0.05,
       },
       renderScaleX: {
         value: 0.5, min: 0.2, max: 1, step: 0.01,
@@ -257,6 +268,41 @@ export function useSensorParams() {
         value: preset.motionBlur ?? 0, min: 0, max: 1, step: 0.05,
         hint: 'camera motion blur — off by default, it rarely feels right in games',
       },
+      flare: {
+        value: preset.flare ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'internal-reflection ghosts from bright sources',
+      },
+      anamorphic: {
+        value: preset.anamorphic ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'horizontal blue streak from highlights',
+      },
+      halation: {
+        value: preset.halation ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'film halation — red-orange glow bleeding around highlights',
+      },
+      gateWeave: {
+        value: preset.gateWeave ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'analog gate weave — slow frame drift and pull-down bumps',
+      },
+      dust: {
+        value: preset.dust ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'film dust and scratches, per-frame',
+      },
+    }),
+    Signal: folder({
+      crt: {
+        value: preset.crt ?? 0, min: 0, max: 1, step: 0.05,
+        hint: 'CRT display simulation — scanlines, phosphor mask, refresh band; applied after the dither, like a real monitor',
+      },
+      crtCurve: {
+        value: preset.crtCurve ?? 0, min: 0, max: 0.35, step: 0.01,
+        hint: 'barrel curvature + bezel',
+      },
+      crtMask: {
+        value: preset.crtMask ?? 'grille',
+        options: ['grille', 'slot', 'dot'],
+        hint: 'phosphor mask pattern',
+      },
     }),
     Dither: folder({
       ditherMode: {
@@ -343,7 +389,7 @@ export function useSensorParams() {
 
   return {
     sensor, scene, textures, moveMode, perf,
-    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, fogDensity, fogHeight,
+    timeOfDay, renderScaleX, renderScaleY, outputScale, sharpen, taauEnabled, aa, ao, aoStrength, fogDensity, fogHeight, godRays,
     taauBlend, taauGamma, taauKernel, taauLumaReject, taauFilter, taauDebug,
     ...values,
   }
