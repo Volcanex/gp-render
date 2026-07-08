@@ -1,0 +1,17 @@
+[Unit]
+Description=Render playground (WebGPU/Three.js rendering explorer)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gabriel
+WorkingDirectory=/home/gabriel/render/server
+Environment=PATH=/home/gabriel/render/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/home/gabriel/render/.venv/bin/python3 -m uvicorn app:app --host 127.0.0.1 --port 8094 --proxy-headers
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

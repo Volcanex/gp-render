@@ -1,7 +1,7 @@
 [project]
-name = "titan"
+name = "render"
 version = "0.1.0"
-description = "Dithered vision-system explorer"
+description = "Rendering playground — WebGPU/Three.js shading explorer"
 dependencies = [
     "fastapi",
     "uvicorn",
