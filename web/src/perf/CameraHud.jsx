@@ -1,5 +1,5 @@
 // Viewfinder readout — the sensor's current effective exposure state,
-// published per frame by VisionPipeline on window.__titanCamera.
+// published per frame by VisionPipeline on window.__renderCamera.
 import { useEffect, useState } from 'react'
 
 const wrap = {
@@ -15,7 +15,7 @@ function shutterLabel(shutter) {
 export default function CameraHud() {
   const [cam, setCam] = useState(null)
   useEffect(() => {
-    const id = setInterval(() => setCam(window.__titanCamera ? { ...window.__titanCamera } : null), 150)
+    const id = setInterval(() => setCam(window.__renderCamera ? { ...window.__renderCamera } : null), 150)
     return () => clearInterval(id)
   }, [])
   if (!cam) return null

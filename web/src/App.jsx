@@ -2,7 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import TestScene from './scene/TestScene.jsx'
 import RaymarchScene from './scene/RaymarchScene.jsx'
-import TitanScene from './scene/TitanScene.jsx'
+import RenderScene from './scene/RenderScene.jsx'
 import MaterialRoom from './scene/MaterialRoom.jsx'
 import CameraRig from './scene/CameraRig.jsx'
 import VisionPipeline from './effects/VisionPipeline.jsx'
@@ -66,13 +66,13 @@ export default function App() {
         return prev
       })
     }
-    window.addEventListener('titan:mat-reroll', onReroll)
-    window.addEventListener('titan:mat-save', onSave)
-    window.addEventListener('titan:mat-pick', onPick)
+    window.addEventListener('render:mat-reroll', onReroll)
+    window.addEventListener('render:mat-save', onSave)
+    window.addEventListener('render:mat-pick', onPick)
     return () => {
-      window.removeEventListener('titan:mat-reroll', onReroll)
-      window.removeEventListener('titan:mat-save', onSave)
-      window.removeEventListener('titan:mat-pick', onPick)
+      window.removeEventListener('render:mat-reroll', onReroll)
+      window.removeEventListener('render:mat-save', onSave)
+      window.removeEventListener('render:mat-pick', onPick)
     }
   }, [wallSeed, activeSlot, setLab])
   // live editing: lab changes rewrite (and rebake) the active panel
@@ -115,7 +115,7 @@ export default function App() {
         camera={{ position: [4, 2.5, 5], fov: 60 }}
         dpr={params.outputScale || 1}
       >
-        {params.scene !== 'titan' ? (
+        {params.scene !== 'render' ? (
         <color attach="background" args={params.scene === 'raymarch' ? ['#000000'] : skyColor(params.timeOfDay)} />
       ) : null}
         {params.scene === 'materials' ? (
@@ -129,8 +129,8 @@ export default function App() {
               uvColor: params.uvColor, irColor: params.irColor,
               uvGain: params.uvGain, irGain: params.irGain,
             }} />
-          ) : params.scene === 'titan' ? (
-            <TitanScene timeOfDay={params.timeOfDay} torch={torch} bands={{
+          ) : params.scene === 'render' ? (
+            <RenderScene timeOfDay={params.timeOfDay} torch={torch} bands={{
               visible: params.seeVisible, uv: params.seeUv, ir: params.seeIr,
               uvColor: params.uvColor, irColor: params.irColor,
               uvGain: params.uvGain, irGain: params.irGain,

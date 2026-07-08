@@ -65,7 +65,7 @@ export class RCASEffect extends Effect {
     this.uniforms.get('uSharpness').value = value
   }
 
-  // titan-style params object support (kept for drop-in compatibility)
+  // render-style params object support (kept for drop-in compatibility)
   setParams(params) {
     this.sharpness = params.sharpen || 0
   }

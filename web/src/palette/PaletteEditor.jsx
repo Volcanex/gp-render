@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { slotToHex, hexToSlot, identity332 } from './clut.js'
 import { CLUT_PRESETS, applyClutPreset } from './clutPresets.js'
 
-const STORAGE_KEY = 'titan.cluts'
+const STORAGE_KEY = 'render.cluts'
 
 function loadSaved() {
   try {
@@ -115,16 +115,16 @@ export default function PaletteEditor({ clutData, clutTexture, version }) {
   return (
     <div style={styles.panel}>
       <style>{`
-        .titan-palette-swatch { width: 14px; height: 14px; padding: 0; border: 1px solid #000; cursor: pointer; }
-        .titan-palette-swatch.selected { outline: 1px solid #fff; outline-offset: 1px; }
-        .titan-palette-input { background: #0d0f12; color: #ccc; border: 1px solid #333; border-radius: 3px; font-family: monospace; font-size: 11px; padding: 2px 4px; }
-        .titan-palette-btn { background: #24292e; color: #ccc; border: 1px solid #3a3f45; border-radius: 3px; font-family: monospace; font-size: 11px; padding: 2px 6px; cursor: pointer; }
-        .titan-palette-btn:hover { background: #2d333a; }
+        .render-palette-swatch { width: 14px; height: 14px; padding: 0; border: 1px solid #000; cursor: pointer; }
+        .render-palette-swatch.selected { outline: 1px solid #fff; outline-offset: 1px; }
+        .render-palette-input { background: #0d0f12; color: #ccc; border: 1px solid #333; border-radius: 3px; font-family: monospace; font-size: 11px; padding: 2px 4px; }
+        .render-palette-btn { background: #24292e; color: #ccc; border: 1px solid #3a3f45; border-radius: 3px; font-family: monospace; font-size: 11px; padding: 2px 6px; cursor: pointer; }
+        .render-palette-btn:hover { background: #2d333a; }
       `}</style>
 
       <div style={styles.header}>
         <span>palette</span>
-        <button className="titan-palette-btn" onClick={() => setOpen(false)}>x</button>
+        <button className="render-palette-btn" onClick={() => setOpen(false)}>x</button>
       </div>
 
       <div style={styles.body}>
@@ -140,7 +140,7 @@ export default function PaletteEditor({ clutData, clutTexture, version }) {
             <button
               key={i}
               data-idx={i}
-              className={'titan-palette-swatch' + (i === selected ? ' selected' : '')}
+              className={'render-palette-swatch' + (i === selected ? ' selected' : '')}
               style={{ background: slotToHex(clutData, i) }}
               title={'slot ' + i}
             />
@@ -157,7 +157,7 @@ export default function PaletteEditor({ clutData, clutTexture, version }) {
 
           <div style={styles.row}>
             <select
-              className="titan-palette-input"
+              className="render-palette-input"
               style={{ flex: 1 }}
               defaultValue=""
               onChange={(e) => {
@@ -174,13 +174,13 @@ export default function PaletteEditor({ clutData, clutTexture, version }) {
 
           <div style={styles.row}>
             <input
-              className="titan-palette-input"
+              className="render-palette-input"
               placeholder="palette name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               style={{ flex: 1 }}
             />
-            <button className="titan-palette-btn" onClick={handleSave}>save</button>
+            <button className="render-palette-btn" onClick={handleSave}>save</button>
           </div>
 
           <div style={styles.savedList}>
@@ -188,16 +188,16 @@ export default function PaletteEditor({ clutData, clutTexture, version }) {
             {Object.keys(saved).map(n => (
               <div key={n} style={styles.row}>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
-                <button className="titan-palette-btn" onClick={() => handleLoad(n)}>load</button>
-                <button className="titan-palette-btn" onClick={() => handleDelete(n)}>del</button>
+                <button className="render-palette-btn" onClick={() => handleLoad(n)}>load</button>
+                <button className="render-palette-btn" onClick={() => handleDelete(n)}>del</button>
               </div>
             ))}
           </div>
 
           <div style={styles.row}>
-            <button className="titan-palette-btn" onClick={handleReset}>reset</button>
-            <button className="titan-palette-btn" onClick={handleExport}>export</button>
-            <button className="titan-palette-btn" onClick={() => fileInputRef.current.click()}>import</button>
+            <button className="render-palette-btn" onClick={handleReset}>reset</button>
+            <button className="render-palette-btn" onClick={handleExport}>export</button>
+            <button className="render-palette-btn" onClick={() => fileInputRef.current.click()}>import</button>
             <input
               ref={fileInputRef}
               type="file"

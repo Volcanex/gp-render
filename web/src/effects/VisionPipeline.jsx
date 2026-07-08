@@ -26,7 +26,7 @@ import { ErrorDiffusionPass } from './ErrorDiffusionPass.js'
 import { AutofocusController } from './autofocus.js'
 import { MeteringPass, AutoExposureController } from './metering.js'
 import { VolumetricFogEffect } from './VolumetricFogEffect.js'
-import { TITAN_LAMPS } from '../scene/TitanScene.jsx'
+import { RENDER_LAMPS } from '../scene/RenderScene.jsx'
 import { attachPassTimers, markFrame, initGpuTimers } from '../perf/passTimers.js'
 import { getRampTexture } from './ramps.js'
 
@@ -113,14 +113,14 @@ export default function VisionPipeline({ params, clutTexture }) {
   const effScratch = useRef({})
   useEffect(() => { af.setMode(params.afMode) }, [af, params.afMode])
   useEffect(() => { af.setManual(params.focusDistance) }, [af, params.focusDistance])
-  // debug hook: watch AF state from the console (window.__titanAF.current)
-  useEffect(() => { window.__titanAF = af }, [af])
+  // debug hook: watch AF state from the console (window.__renderAF.current)
+  useEffect(() => { window.__renderAF = af }, [af])
 
-  // Volumetric fog: depth-marched haze with lamp inscatter, Titan scene only
+  // Volumetric fog: depth-marched haze with lamp inscatter, Render scene only
   const volFog = useMemo(() => {
-    if (params.scene !== 'titan') return null
+    if (params.scene !== 'render') return null
     const fx = new VolumetricFogEffect()
-    fx.setLights(TITAN_LAMPS)
+    fx.setLights(RENDER_LAMPS)
     fx.setParams({ density: 0.011, fogColor: '#2a1608', enabled: true, fogBase: -0.5, fogHeight: 4.5 })
     return fx
   }, [params.scene])
@@ -151,10 +151,10 @@ export default function VisionPipeline({ params, clutTexture }) {
     [params.crt > 0],
   )
   useEffect(() => () => { if (crtFx) crtFx.dispose?.() }, [crtFx])
-  // god rays need a sun: titan is overcast, raymarch draws its own sky
+  // god rays need a sun: render is overcast, raymarch draws its own sky
   const raysFx = useMemo(
-    () => (params.godRays > 0 && params.scene !== 'titan' ? new LightShaftsEffect() : null),
-    [params.godRays > 0 && params.scene !== 'titan'],
+    () => (params.godRays > 0 && params.scene !== 'render' ? new LightShaftsEffect() : null),
+    [params.godRays > 0 && params.scene !== 'render'],
   )
   useEffect(() => () => { if (raysFx) raysFx.dispose?.() }, [raysFx])
   const sunScratch = useRef({ dir: new THREE.Vector3(), pos: new THREE.Vector3(), fwd: new THREE.Vector3(), col: new THREE.Color() })
@@ -323,7 +323,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     vision.setParams(eff)
     // viewfinder readout state (CameraHud polls this); shutter is display
     // fiction derived from effective EV until motion blur is simulated
-    window.__titanCamera = {
+    window.__renderCamera = {
       iso: Math.round(eff.iso),
       fNumber: Math.round(eff.fNumber * 10) / 10,
       shutter: Math.round(eff.shutter || 60),

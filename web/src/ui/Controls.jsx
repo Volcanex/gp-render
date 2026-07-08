@@ -3,7 +3,7 @@ import { useControls, folder, button } from 'leva'
 import { SENSOR_PRESETS, PALETTES, DEFAULT_SENSOR } from '../sensors/presets.js'
 import { CLUT_PRESETS } from '../palette/clutPresets.js'
 
-const USER_PRESETS_KEY = 'titan.userPresets'
+const USER_PRESETS_KEY = 'render.userPresets'
 
 let focalSetterRef = null
 
@@ -67,8 +67,8 @@ export function useMaterialLab() {
       'Layer 2': materialLayerFolder(2),
       'Layer 3': materialLayerFolder(3),
       'Layer 4': materialLayerFolder(4),
-      'reroll wall': button(() => window.dispatchEvent(new Event('titan:mat-reroll'))),
-      'save material': button(() => window.dispatchEvent(new Event('titan:mat-save'))),
+      'reroll wall': button(() => window.dispatchEvent(new Event('render:mat-reroll'))),
+      'save material': button(() => window.dispatchEvent(new Event('render:mat-save'))),
     }),
   }))
 }
@@ -92,7 +92,7 @@ export function useSensorParams() {
     },
     scene: {
       value: 'geometry',
-      options: ['geometry', 'titan', 'raymarch', 'materials'],
+      options: ['geometry', 'render', 'raymarch', 'materials'],
       hint: 'spectrum (uv/ir) only applies to the geometry scene; materials = generated-texture gallery',
     },
     textures: {
@@ -121,7 +121,7 @@ export function useSensorParams() {
       },
       fogDensity: {
         value: 0.011, min: 0, max: 0.04, step: 0.001,
-        hint: 'titan volumetric fog thickness',
+        hint: 'render volumetric fog thickness',
       },
       fogHeight: {
         value: 4.5, min: 1, max: 12, step: 0.5,

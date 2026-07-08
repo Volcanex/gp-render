@@ -136,7 +136,7 @@ export function labFromSpec(spec) {
   return v
 }
 
-const STORE_KEY = 'titan.userMaterials'
+const STORE_KEY = 'render.userMaterials'
 
 export function loadUserMaterials() {
   try {

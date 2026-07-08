@@ -29,8 +29,10 @@ cd ../server && uvicorn app:app --port 8094
 - nginx vhost `deploy/render.nginx` for render.gabrielpenman.com, port
   8094, no auth. Certbot adds TLS + the :80 redirect on top of this file.
 
+The former Titan-game environment (poles + volumetric haze) is now just
+one of the scenes, selectable as `render` in the scene dropdown
+(`web/src/scene/RenderScene.jsx`, exports `RENDER_LAMPS`).
+
 ## Gotcha
 Server serves `web/dist/`, not `web/src/`. Rebuild (`npm run build`)
-after frontend edits or the deployed site won't change. Frontend source
-still carries the old `Titan*` component/branding names internally —
-cosmetic, not yet renamed.
+after frontend edits or the deployed site won't change.

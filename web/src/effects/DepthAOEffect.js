@@ -1,5 +1,5 @@
 // Depth-based screen-space ambient occlusion — pure POST effect reading only
-// the depth buffer, since titan's temporal upscaler renders the scene once
+// the depth buffer, since render's temporal upscaler renders the scene once
 // and this pass runs after it (no scene re-render, no normal buffer).
 //
 // Known caveat: the upscaler's nearest-upsampled depth is blocky at

@@ -154,7 +154,7 @@ function buildPolePlan() {
 
 const POLES = buildPolePlan()
 
-export const TITAN_LAMPS = POLES.map((p) => ({ position: p.lampPosition, color: p.color }))
+export const RENDER_LAMPS = POLES.map((p) => ({ position: p.lampPosition, color: p.color }))
 
 // ============ rock field ============
 
@@ -267,7 +267,7 @@ const NEAR_BLACK = '#020202'
 const FOG_NIGHT = new THREE.Color('#0a0502')
 const FOG_DAY = new THREE.Color('#3a2210')
 
-export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
+export default function RenderScene({ bands, timeOfDay = 14, torch = false }) {
   // walkable ground: CameraRig samples this so walk mode follows the terrain
   useEffect(() => {
     window.__groundFn = terrainHeight
@@ -285,7 +285,7 @@ export default function TitanScene({ bands, timeOfDay = 14, torch = false }) {
   const dayMix = clamp01((sunElevation + 1) / 2)
   const dayFactor = Math.max(0, Math.min(1, sunElevation))
 
-  // Titan barely sees its sun through the haze — weak directional light, but the haze
+  // Render barely sees its sun through the haze — weak directional light, but the haze
   // scatters it everywhere, so shadow faces still get a warm orange fill, never true black
   const sunIntensity = visible ? 0.15 + dayFactor * 0.35 : 0
   // night floors drop hard — the pole lights and torch should be the only meaningful

@@ -304,7 +304,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
       const hits = raycaster.intersectObjects(targets, false)
       if (hits.length > 0) {
         const slot = hits[0].object.userData.slot
-        window.dispatchEvent(new CustomEvent('titan:mat-pick', { detail: { slot } }))
+        window.dispatchEvent(new CustomEvent('render:mat-pick', { detail: { slot } }))
       }
     }
     window.addEventListener('keydown', onKeyDown)
