@@ -3,14 +3,31 @@ import { slotToHex, hexToSlot, identity332 } from './clut.js'
 import { CLUT_PRESETS, applyClutPreset } from './clutPresets.js'
 
 const STORAGE_KEY = 'render.cluts'
+const LEGACY_STORAGE_KEY = 'titan.cluts'
 
-function loadSaved() {
+function parseStore(raw) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
+    const obj = raw ? JSON.parse(raw) : {}
+    return obj && typeof obj === 'object' ? obj : {}
   } catch {
     return {}
   }
+}
+
+// One-time migration: palettes saved under the old `titan.*` key are folded
+// into `render.*` (existing render entries win on name clash) and the old key
+// is cleared so this runs at most once.
+function migrateLegacy(current) {
+  const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+  if (legacyRaw === null) return current
+  const merged = { ...parseStore(legacyRaw), ...current }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
+  localStorage.removeItem(LEGACY_STORAGE_KEY)
+  return merged
+}
+
+function loadSaved() {
+  return migrateLegacy(parseStore(localStorage.getItem(STORAGE_KEY)))
 }
 
 function isValidPalette(arr) {
