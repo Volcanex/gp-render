@@ -6,6 +6,7 @@ const wrap = {
   position: 'fixed', top: 12, right: 320, zIndex: 5, pointerEvents: 'none',
   background: 'rgba(16, 18, 22, 0.82)', color: '#cfd6dd', borderRadius: 6,
   font: '11px ui-monospace, monospace', padding: '7px 10px', letterSpacing: '0.03em',
+  display: 'flex', gap: 10,
 }
 
 function shutterLabel(shutter) {
@@ -23,14 +24,13 @@ export default function CameraHud() {
   return (
     <div style={wrap}>
       <span style={{ color: '#e8b45a' }}>ISO {cam.iso}</span>
-      {' · '}f/{cam.fNumber}
-      {' · '}{shutterLabel(cam.shutter)}
-      {' · '}{cam.focalLength}mm
-      {cam.focus != null ? <>{' · '}{cam.focus.toFixed(1)}m</> : null}
-      {auto ? <span style={{ color: '#7ec48a' }}>{'  AE'}{cam.aeStops >= 0 ? '+' : ''}{cam.aeStops.toFixed(1)}</span> : null}
+      <span>f/{cam.fNumber}</span>
+      <span>{shutterLabel(cam.shutter)}</span>
+      <span>{cam.focalLength}mm</span>
+      {cam.focus != null ? <span>{cam.focus.toFixed(1)}m</span> : null}
+      {auto ? <span style={{ color: '#7ec48a' }}>{'AE'}{cam.aeStops >= 0 ? '+' : ''}{cam.aeStops.toFixed(1)}</span> : null}
       {cam.taauTo ? (
         <span style={{ color: '#8aa4c4' }}>
-          {'  '}
           {cam.taauFrom ? `${cam.taauFrom[0]}×${cam.taauFrom[1]} → ` : ''}
           {cam.taauTo[0]}×{cam.taauTo[1]}
         </span>

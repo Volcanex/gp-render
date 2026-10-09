@@ -58,15 +58,13 @@ export default function PerfHud() {
         userSelect: 'none',
       }}
     >
-      <div style={{ fontSize: 16, fontWeight: 600 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, display: 'flex', gap: 12 }}>
         <span style={{ color: fpsColor(snapshot.fps) }}>FPS {Math.round(snapshot.fps)}</span>
-        <span style={{ opacity: 0.6 }}> · </span>
         <span style={{ color: fpsColor(snapshot.low1) }}>1% low {Math.round(snapshot.low1)}</span>
-        <span style={{ opacity: 0.6 }}> · </span>
         <span>{snapshot.spikes} spikes</span>
       </div>
       <div style={{ opacity: 0.5, marginBottom: 4 }}>
-        cpu ms | gpu ms per pass — gpu needs EXT_disjoint_timer_query
+        cpu ms | gpu ms per pass (gpu needs EXT_disjoint_timer_query)
       </div>
       {rows.map((p) => (
         <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>

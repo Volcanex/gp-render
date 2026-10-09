@@ -117,7 +117,7 @@ export function useSensorParams() {
     World: folder({
       timeOfDay: {
         value: 14, min: 0, max: 24, step: 0.25,
-        hint: 'sun position/colour — both scenes',
+        hint: 'sun position/colour: both scenes',
       },
       fogDensity: {
         value: 0.011, min: 0, max: 0.04, step: 0.001,
@@ -129,32 +129,32 @@ export function useSensorParams() {
       },
       godRays: {
         value: 0.25, min: 0, max: 1, step: 0.05,
-        hint: 'screen-space crepuscular rays from the sun — strongest at low sun angles',
+        hint: 'screen-space crepuscular rays from the sun: strongest at low sun angles',
       },
     }),
     Display: folder({
       taauEnabled: {
         value: true,
-        hint: 'temporal upscaling on/off — off = plain render at output resolution, for A/B comparison',
+        hint: 'temporal upscaling on/off: off = plain render at output resolution, for A/B comparison',
       },
       ao: {
         value: true,
-        hint: 'depth-based ambient occlusion — soft contact shading, works with the temporal upscaler',
+        hint: 'depth-based ambient occlusion: soft contact shading, works with the temporal upscaler',
       },
       aoStrength: {
         value: 0.5, min: 0, max: 1, step: 0.05,
       },
       renderScaleX: {
         value: 0.5, min: 0.2, max: 1, step: 0.01,
-        hint: 'internal render scale per axis — non-matching ratios give interlace-style reconstruction',
+        hint: 'internal render scale per axis: non-matching ratios give interlace-style reconstruction',
       },
       renderScaleY: {
         value: 0.5, min: 0.2, max: 1, step: 0.01,
-        hint: 'internal render scale per axis — non-matching ratios give interlace-style reconstruction',
+        hint: 'internal render scale per axis: non-matching ratios give interlace-style reconstruction',
       },
       outputScale: {
         value: 1, options: [1, 1.5, 2],
-        hint: 'output multiplier — 2 on a 1080p window ≈ supersampled 4K',
+        hint: 'output multiplier: 2 on a 1080p window ≈ supersampled 4K',
       },
       sharpen: {
         value: 0.2, min: 0, max: 1, step: 0.05,
@@ -162,29 +162,29 @@ export function useSensorParams() {
       },
       aa: {
         value: false,
-        hint: 'extra SMAA pass on top of TAAU — catches residual geometric edges, small GPU cost',
+        hint: 'extra SMAA pass on top of TAAU: catches residual geometric edges, small GPU cost',
       },
     }),
     TAAU: folder({
       taauBlend: {
         value: 0.92, min: 0.5, max: 0.98, step: 0.01,
-        hint: 'history weight — higher = smoother/more stable, lower = more responsive',
+        hint: 'history weight: higher = smoother/more stable, lower = more responsive',
       },
       taauGamma: {
         value: 1.5, min: 0.25, max: 4, step: 0.05,
-        hint: 'variance clip tightness — lower kills ghosting but shimmers, higher smooths but ghosts',
+        hint: 'variance clip tightness: lower kills ghosting but shimmers, higher smooths but ghosts',
       },
       taauKernel: {
         value: 2.9, min: 0.5, max: 6, step: 0.1,
-        hint: 'sample confidence sharpness — higher = crisper, slower convergence',
+        hint: 'sample confidence sharpness: higher = crisper, slower convergence',
       },
       taauLumaReject: {
         value: 0.3, min: 0, max: 1, step: 0.05,
-        hint: 'luminance-change rejection — 0 stable, 1 reactive',
+        hint: 'luminance-change rejection: 0 stable, 1 reactive',
       },
       taauFilter: {
         value: 'catmullrom', options: ['catmullrom', 'bilinear'],
-        hint: 'history resampling — catmullrom fights blur',
+        hint: 'history resampling: catmullrom fights blur',
       },
       taauDebug: {
         value: 'off', options: ['off', 'confidence', 'clip', 'history', 'motion'],
@@ -205,13 +205,13 @@ export function useSensorParams() {
       ev: { value: preset.ev, min: -8, max: 6, step: 0.1 },
       iso: {
         value: preset.iso, min: 25, max: 25600, step: 25,
-        hint: 'base ISO sensitivity — auto-iso trades gain from here against the aperture',
+        hint: 'base ISO sensitivity: auto-iso trades gain from here against the aperture',
       },
       fNumber: { value: preset.fNumber, min: 1.4, max: 16, step: 0.1 },
       shutter: {
         value: preset.shutter ?? 60,
         options: [15, 30, 60, 125, 250, 500, 1000],
-        hint: 'shutter speed 1/N — slower = brighter (+ more rolling-shutter skew), faster = darker',
+        hint: 'shutter speed 1/N: slower = brighter (+ more rolling-shutter skew), faster = darker',
       },
       dynamicRange: {
         value: preset.dynamicRange, min: 0, max: 12, step: 0.5,
@@ -227,11 +227,11 @@ export function useSensorParams() {
       },
       toneS: {
         value: preset.toneS ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'filmic S-curve — toe/shoulder contrast on top of dynamic range',
+        hint: 'filmic S-curve: toe/shoulder contrast on top of dynamic range',
       },
       aeBias: {
         value: preset.aeBias ?? 0, min: -3, max: 3, step: 0.1,
-        hint: "auto-exposure compensation — negative keeps dark scenes dark, like a real camera's +/- dial",
+        hint: "auto-exposure compensation: negative keeps dark scenes dark, like a real camera's +/- dial",
       },
     }),
     Optics: folder({
@@ -239,7 +239,7 @@ export function useSensorParams() {
       focusDistance: { value: preset.focusDistance, min: 1, max: 40, step: 0.5 },
       focalLength: {
         value: preset.focalLength, min: 18, max: 135, step: 1,
-        hint: 'lens mm — drives FOV',
+        hint: 'lens mm: drives FOV',
       },
       afMode: {
         value: preset.afMode,
@@ -254,7 +254,7 @@ export function useSensorParams() {
       },
       chromAb: {
         value: preset.chromAb ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'chromatic aberration — colour fringing, cheap glass',
+        hint: 'chromatic aberration: colour fringing, cheap glass',
       },
       bloom: {
         value: preset.bloom ?? 0, min: 0, max: 1, step: 0.05,
@@ -262,11 +262,11 @@ export function useSensorParams() {
       },
       rollingShutter: {
         value: preset.rollingShutter ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'sensor readout skew — verticals lean when panning, jello under shake; no blur',
+        hint: 'sensor readout skew: verticals lean when panning, jello under shake; no blur',
       },
       motionBlur: {
         value: preset.motionBlur ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'camera motion blur — off by default, it rarely feels right in games',
+        hint: 'camera motion blur: off by default, it rarely feels right in games',
       },
       flare: {
         value: preset.flare ?? 0, min: 0, max: 1, step: 0.05,
@@ -278,11 +278,11 @@ export function useSensorParams() {
       },
       halation: {
         value: preset.halation ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'film halation — red-orange glow bleeding around highlights',
+        hint: 'film halation: red-orange glow bleeding around highlights',
       },
       gateWeave: {
         value: preset.gateWeave ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'analog gate weave — slow frame drift and pull-down bumps',
+        hint: 'analog gate weave: slow frame drift and pull-down bumps',
       },
       dust: {
         value: preset.dust ?? 0, min: 0, max: 1, step: 0.05,
@@ -292,7 +292,7 @@ export function useSensorParams() {
     Signal: folder({
       crt: {
         value: preset.crt ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'CRT display simulation — scanlines, phosphor mask, refresh band; applied after the dither, like a real monitor',
+        hint: 'CRT display simulation: scanlines, phosphor mask, refresh band; applied after the dither, like a real monitor',
       },
       crtCurve: {
         value: preset.crtCurve ?? 0, min: 0, max: 0.35, step: 0.01,
@@ -305,7 +305,7 @@ export function useSensorParams() {
       },
       crtFlicker: {
         value: preset.crtFlicker ?? 0, min: 0, max: 1, step: 0.05,
-        hint: 'CRT refresh-band flicker — 0 = temporally rock-solid screen',
+        hint: 'CRT refresh-band flicker: 0 = temporally rock-solid screen',
       },
     }),
     Dither: folder({
