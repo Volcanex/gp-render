@@ -1,4 +1,7 @@
-# render
+# gp-render
+
+Repo `Volcanex/gp-render` (was `render`), checked out at `/home/gabriel/gp-render`;
+`/home/gabriel/render` is a compat symlink. The systemd unit is still `render`.
 
 **Owner:** Gabriel Penman
 

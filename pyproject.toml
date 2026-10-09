@@ -1,5 +1,5 @@
 [project]
-name = "render"
+name = "gp-render"
 version = "0.1.0"
 description = "Rendering playground — WebGPU/Three.js shading explorer"
 dependencies = [
