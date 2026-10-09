@@ -20,3 +20,5 @@ For live reloading while you work on the frontend, run `npm run dev` in `web/` i
 Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You can read it, run it and change it for any noncommercial purpose.
 
 Required Notice: Copyright Gabriel Penman (https://gabrielpenman.com)
+
+Blue-noise textures: Christoph Peters, CC0, momentsingraphics.de/BlueNoise.html
