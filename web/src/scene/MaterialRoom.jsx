@@ -21,7 +21,7 @@ function panelPosition(slot) {
   return [col * PITCH - WALL_WIDTH / 2, BOTTOM_Y + row * PITCH, WALL_Z]
 }
 
-// single wall panel — maps are baked once in the parent cache and shared
+// single wall panel: maps are baked once in the parent cache and shared
 // with any junk-field object wearing the same slot's material
 function Panel({ slot, maps, active, registerMesh }) {
   const position = useMemo(() => panelPosition(slot), [slot])
@@ -82,7 +82,7 @@ const JUNK_REST_FRACTION = {
   box: 0.5, sphere: 0.6, torus: 0.65, torusKnot: 0.55,
   cylinder: 0.5, cone: 0.5, icosahedron: 0.6, capsule: 0.65,
 }
-// clear spawn corridor (x:[0,4], z:[0,5]) plus a 2m margin — junk avoids it
+// clear spawn corridor (x:[0,4], z:[0,5]) plus a 2m margin: junk avoids it
 const CORRIDOR_X = [-2, 6]
 const CORRIDOR_Z = [-2, 7]
 
@@ -183,7 +183,7 @@ const GROUND_NIGHT = new THREE.Color('#05060d')
 export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = [], activeSlot = -1, wallSeed = 1 }) {
   const { gl, camera } = useThree()
 
-  // walk mode ground convention — the gallery floor is flat
+  // walk mode ground convention: the gallery floor is flat
   useEffect(() => {
     const flatGround = () => 0
     window.__groundFn = flatGround
@@ -193,7 +193,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
   const baker = useMemo(() => new MaterialBaker(gl), [gl])
   useEffect(() => () => baker.dispose?.(), [baker])
 
-  // Shared bake cache, keyed by wall slot — Panel and junk-field objects
+  // Shared bake cache, keyed by wall slot: Panel and junk-field objects
   // both read from here so a material is only ever baked once per spec.
   // Baking is staggered at one slot per frame (see useFrame below) so a
   // full 32-slot reroll never blocks the main thread in a single commit.
@@ -203,7 +203,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
   const specsRef = useRef(specs)
   useEffect(() => { specsRef.current = specs }, [specs])
   const prevSpecsRef = useRef(new Array(32).fill(undefined))
-  // insertion-ordered queue of slots awaiting a bake — Set preserves order
+  // insertion-ordered queue of slots awaiting a bake: Set preserves order
   const pendingRef = useRef(new Set())
 
   // invalidate only the slots whose spec identity actually changed: a
@@ -280,7 +280,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
     }
   })
 
-  // pickable mesh registries for KeyE raycasting — panels and junk-field
+  // pickable mesh registries for KeyE raycasting: panels and junk-field
   // objects both register into their own slot so either can be picked
   const panelMeshes = useRef([])
   const registerPanelMesh = useMemo(
@@ -332,7 +332,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
       {/* warm point lights so the wall reads at night without the sun */}
       <pointLight position={[-8, 4, -2]} intensity={1.2} distance={18} decay={1.2} color="#ffd9a0" />
       <pointLight position={[8, 4, -2]} intensity={1.2} distance={18} decay={1.2} color="#ffd9a0" />
-      {/* handheld torch — parented to the camera via position copy each frame */}
+      {/* handheld torch: parented to the camera via position copy each frame */}
       <spotLight
         ref={torchRef}
         angle={0.5}
@@ -377,7 +377,7 @@ export default function MaterialRoom({ timeOfDay = 14, torch = false, specs = []
         />
       ))}
 
-      {/* junk field — curved geometry wearing the same baked materials */}
+      {/* junk field: curved geometry wearing the same baked materials */}
       {junkField.map((item, i) => (
         <JunkItem
           key={i}

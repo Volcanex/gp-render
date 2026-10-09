@@ -30,7 +30,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   }
 
   // unproject this frame's pixel to world space, then reproject through last
-  // frame's view-projection — the difference in uv is the motion vector
+  // frame's view-projection: the difference in uv is the motion vector
   vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
   vec4 worldPos = uCurrInvVP * ndc;
   worldPos /= worldPos.w;

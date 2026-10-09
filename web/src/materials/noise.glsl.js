@@ -1,5 +1,5 @@
 // GLSL noise/fractal library for the procedural material baker.
-// GLSL3-compatible, no texture reads, no uniforms — functions only.
+// GLSL3-compatible, no texture reads, no uniforms: functions only.
 export const noiseGLSL = /* glsl */ `
 // --- hash primitives ---------------------------------------------------
 // sin-free hashes, after Inigo Quilez (https://www.shadertoy.com/view/4dS3Wd)
@@ -152,7 +152,7 @@ float simplexNoise(vec2 v) {
 }
 
 // --- billow -----------------------------------------------------------------
-// fbm of abs(2n-1) per octave on perlin noise — billowy, cloud-like masses
+// fbm of abs(2n-1) per octave on perlin noise: billowy, cloud-like masses
 float billow(vec2 p, int octaves, float lacunarity, float gain) {
   float sum = 0.0;
   float amp = 0.5;
@@ -311,7 +311,7 @@ float plasma(vec2 p, int octaves, float lacunarity, float gain) {
 }
 
 // --- terrace -----------------------------------------------------------------
-// fbm quantised into steps with a smoothed transition band — layered strata
+// fbm quantised into steps with a smoothed transition band: layered strata
 float terrace(vec2 p, int octaves, float lacunarity, float gain) {
   float n = fbmGen(p, octaves, lacunarity, gain, 1);
   float steps = 8.0;

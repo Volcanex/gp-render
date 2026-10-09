@@ -1,67 +1,67 @@
-// Sensor model presets — the "camera hardware" catalogue.
+// Sensor model presets: the "camera hardware" catalogue.
 // Every param here is overridable live from the Controls panel; a preset is
 // just a starting point. This file is the interface contract between the
 // effect modules, the UI, and the scene: keep the shape stable.
 //
 // Param shape (all effects read from this):
 // {
-//   ev: float            — exposure compensation, applied as color *= 2^ev (pre-quantise)
-//   iso: float           — 100..12800; real sensor gain: brightness x iso/100
+//   ev: float              exposure compensation, applied as color *= 2^ev (pre-quantise)
+//   iso: float             100..12800; real sensor gain: brightness x iso/100
 //                          (one stop per doubling), plus grain amplitude and
 //                          optional dither agitation
-//   fNumber: float       — aperture, 1.4..16; exposure gain = (5.6/f)^2 relative to
+//   fNumber: float         aperture, 1.4..16; exposure gain = (5.6/f)^2 relative to
 //                          f/5.6, and drives DOF bokeh + focus range when dof is on
-//   dof: bool            — depth-of-field pass
-//   focusDistance: float — manual focus distance in WORLD UNITS (afMode 'manual')
-//   focalLength: float   — lens focal length in mm (full-frame equivalent);
+//   dof: bool              depth-of-field pass
+//   focusDistance: float   manual focus distance in WORLD UNITS (afMode 'manual')
+//   focalLength: float     lens focal length in mm (full-frame equivalent);
 //                          drives camera FOV: vfov = 2*atan(12/mm)
-//   afMode: string       — autofocus character, applies when dof is on:
-//                          'manual'  — the focusDistance slider
-//                          'instant' — pro AF, snaps to what you look at
-//                          'lazy'    — slow underdamped servo, overshoots
-//                          'hunting' — cheap contrast-detect: sweeps, sometimes
+//   afMode: string         autofocus character, applies when dof is on:
+//                          'manual'    the focusDistance slider
+//                          'instant'   pro AF, snaps to what you look at
+//                          'lazy'      slow underdamped servo, overshoots
+//                          'hunting'   cheap contrast-detect: sweeps, sometimes
 //                                      misses and settles wrong before correcting
-//   exposureMode: string — 'manual' | 'auto-ev' | 'auto-iso'; auto meters the
+//   exposureMode: string   'manual' | 'auto-ev' | 'auto-iso'; auto meters the
 //                          scene and lags a correction toward mid-grey;
 //                          auto-iso raises ISO instead of EV, so low light
 //                          gets bright AND grainy like a real camera
-//   whiteBalance: float  — Kelvin the sensor corrects for; 6500 = neutral
-//   wbAuto: bool         — gray-world auto white balance (lagged)
-//   toneS: float         — 0..1 filmic S-curve (toe/shoulder) on top of the
+//   whiteBalance: float    Kelvin the sensor corrects for; 6500 = neutral
+//   wbAuto: bool           gray-world auto white balance (lagged)
+//   toneS: float           0..1 filmic S-curve (toe/shoulder) on top of the
 //                          dynamic-range response
-//   vignette: float      — 0..1 corner light falloff
-//   chromAb: float       — 0..1 chromatic aberration (radial colour fringing)
-//   bloom: float         — 0..1 highlight bloom/halation
-//   dynamicRange: float  — sensor latitude in stops; 0 = plain linear response
+//   vignette: float        0..1 corner light falloff
+//   chromAb: float         0..1 chromatic aberration (radial colour fringing)
+//   bloom: float           0..1 highlight bloom/halation
+//   dynamicRange: float    sensor latitude in stops; 0 = plain linear response
 //                          (shadows crush fast), higher = log-encoded shadow lift,
 //                          the "expensive sensor sees into the dark" lever
-//   grain: bool          — ISO sensor-noise overlay on/off
-//   grainAnimated: bool  — re-seed grain per frame (sensor noise) vs frozen
-//   isoAgitation: bool   — ISO also jitters the dither threshold (boiling/blocky
+//   grain: bool            ISO sensor-noise overlay on/off
+//   grainAnimated: bool    re-seed grain per frame (sensor noise) vs frozen
+//   isoAgitation: bool     ISO also jitters the dither threshold (boiling/blocky
 //                          texture at high ISO); off = clean dither at any ISO
-//   colorMode: string    — 'rgb332' (true 8-bit through the editable CLUT)
+//   colorMode: string      'rgb332' (true 8-bit through the editable CLUT)
 //                        | 'rgb'    (levels per channel, levels^3 colours)
 //                        | 'ramp'   (luminance -> palette ramp, the 1-bit/Obra look)
-//   levels: int          — quantisation levels; per channel in 'rgb', luminance
+//   levels: int            quantisation levels; per channel in 'rgb', luminance
 //                          steps in 'ramp' (2 = 1-bit look); ignored in 'rgb332'
-//   ditherMode: string   — 'bluenoise' | 'bayer8' | 'bayer4' | 'ign' |
+//   ditherMode: string     'bluenoise' | 'bayer8' | 'bayer4' | 'ign' |
 //                          'halftone' | 'lines' | 'white' | 'none'
-//   ditherScale: float   — pattern magnification (1 = native, 2 = chunky)
-//   pinning: string      — 'off' | 'rotation'  (Pope screen-offset)
-//   palette: string      — ramp id from PALETTES below (ramp mode only)
-//   clutPreset: string   — rgb332-mode palette: a preset id from
+//   ditherScale: float     pattern magnification (1 = native, 2 = chunky)
+//   pinning: string        'off' | 'rotation'  (Pope screen-offset)
+//   palette: string        ramp id from PALETTES below (ramp mode only)
+//   clutPreset: string     rgb332-mode palette: a preset id from
 //                          palette/clutPresets.js ('identity', hardware
 //                          palettes like 'c64'/'cga'/'zx', or ramp-derived
 //                          tonal CLUTs). Loaded into the editable CLUT;
 //                          manual palette-editor tweaks apply on top.
-//   pixelSize: int       — pixelation pass; 1 = off
-//   outline: bool        — depth+normal sobel outline overlay
+//   pixelSize: int         pixelation pass; 1 = off
+//   outline: bool          depth+normal sobel outline overlay
 //   outlineStrength: float
-//   seeVisible: bool     — sensor sees the visible band (geometry scene only)
-//   seeUv: bool          — sensor sees UV markings, rendered in uvColor
-//   seeIr: bool          — sensor sees IR/heat, rendered in irColor
-//   uvColor: string      — hex colour assigned to the UV band
-//   irColor: string      — hex colour assigned to the IR band
+//   seeVisible: bool       sensor sees the visible band (geometry scene only)
+//   seeUv: bool            sensor sees UV markings, rendered in uvColor
+//   seeIr: bool            sensor sees IR/heat, rendered in irColor
+//   uvColor: string        hex colour assigned to the UV band
+//   irColor: string        hex colour assigned to the IR band
 // }
 //
 // Global (not per-preset), all top-level in ui/Controls.jsx: `scene`

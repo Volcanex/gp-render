@@ -1,4 +1,4 @@
-// MaterialBaker — bakes a declarative material spec (layered procedural
+// MaterialBaker: bakes a declarative material spec (layered procedural
 // noise -> height field -> albedo ramp / roughness curve / normal map) into
 // three GPU textures, using one shared fullscreen-triangle shader with a
 // per-map uMode uniform.

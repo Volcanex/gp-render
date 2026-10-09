@@ -1,4 +1,4 @@
-// Analog film artefacts — gate weave, halation, dust & scratches. Runs after
+// Analog film artefacts: gate weave, halation, dust & scratches. Runs after
 // the sensor stage (which already models digital read noise/pedestal) and
 // before quantisation. Each artefact is independently dialled and cheap
 // single-pass; all sampling downstream of the weave uses the woven uv so the
@@ -77,7 +77,7 @@ vec3 halationGlow(vec2 uv) {
 }
 
 // Dust & scratches: per-film-frame hash-seeded dark blobs and an occasional
-// vertical scratch. Kept sparse — dense only when uDust is pushed high.
+// vertical scratch. Kept sparse: dense only when uDust is pushed high.
 vec3 dustAndScratches(vec3 color, vec2 uv, float t) {
   float frame = floor(t * 24.0);
 

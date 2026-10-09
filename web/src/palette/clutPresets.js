@@ -1,4 +1,4 @@
-// Preset CLUTs for rgb332 colour mode — hardware machine palettes, tonal
+// Preset CLUTs for rgb332 colour mode: hardware machine palettes, tonal
 // mappings derived from the ramp presets, and identity/saturation transforms.
 // Every build(clutData) writes all 256*4 RGBA bytes in place (same contract
 // as identity332 in ./clut.js) so callers can .set()-free reuse the buffer.
@@ -54,7 +54,7 @@ function buildNearestRgb(hexes) {
   }
 }
 
-// Snap by luminance distance instead of RGB distance — for palettes like the
+// Snap by luminance distance instead of RGB distance, for palettes like the
 // DMG greens where hue is fixed and only value should drive the mapping.
 function buildNearestLuma(hexes) {
   const targets = hexes.map(hexToRgb)
@@ -74,7 +74,7 @@ function buildNearestLuma(hexes) {
   }
 }
 
-// CLUT[slot] = rampColour(luminance(slotColour)) — the same lerp-between-hex-
+// CLUT[slot] = rampColour(luminance(slotColour)): the same lerp-between-hex-
 // stops approach as effects/ramps.js's makeRampTexture, sampled by slot luma.
 function buildTone(stops) {
   return (clutData) => {

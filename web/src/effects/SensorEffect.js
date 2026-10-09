@@ -1,9 +1,9 @@
-// Exposure + ISO grain — first stage in the chain, runs pre-quantise so the
+// Exposure + ISO grain: first stage in the chain, runs pre-quantise so the
 // dither stage eats the noise like a real sensor feeding a bit-depth-limited ADC.
 import { Effect } from 'postprocessing'
 import { Uniform, Vector3 } from 'three'
 
-// Tanner Helland blackbody approximation — good enough over 2500-10000K for a
+// Tanner Helland blackbody approximation: good enough over 2500-10000K for a
 // live-adjustable WB slider, not colorimetrically exact.
 function planckianRgb(kelvin) {
   const temp = kelvin / 100

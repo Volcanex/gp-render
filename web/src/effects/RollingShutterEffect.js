@@ -1,4 +1,4 @@
-// Rolling shutter as pure geometric skew — no blur. Simulates a CMOS sensor
+// Rolling shutter as pure geometric skew: no blur. Simulates a CMOS sensor
 // reading rows top-to-bottom: each row samples where the world WAS at that
 // row's readout moment, so panning skews verticals and shake wobbles them
 // jello-style. Runs on the clean image, before depth-based effects.
@@ -17,7 +17,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   }
 
   // readout progress relative to frame centre: top row read first (negative),
-  // bottom row read last (positive) — this is what skews verticals on a pan
+  // bottom row read last (positive): this is what skews verticals on a pan
   float rowPhase = uv.y - 0.5;
   vec2 offset = uVelocity * rowPhase * uAmount * 3.0;
 

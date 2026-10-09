@@ -1,4 +1,4 @@
-// three-taau — temporal anti-aliased upscaling for WebGL2 / three.js.
+// three-taau: temporal anti-aliased upscaling for WebGL2 / three.js.
 // FSR2-class recipe in pure fragment shaders: jittered low-res render,
 // camera-reprojected output-resolution history with YCoCg variance clipping,
 // RCAS sharpening. Built inside the render explorer; extraction target: the

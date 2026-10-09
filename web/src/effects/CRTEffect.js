@@ -1,4 +1,4 @@
-// CRT display simulation — the device the dithered feed is viewed on, so it
+// CRT display simulation: the device the dithered feed is viewed on, so it
 // runs last in the chain, after quantisation. Barrel distortion + bezel,
 // scanlines, phosphor mask and a faint refresh-band shimmer.
 import { Effect } from 'postprocessing'
@@ -85,7 +85,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   color *= 1.0 / (1.0 - 0.3 * uAmount);
 
   // Refresh band: faint bright band sweeping down the tube every ~2.5s.
-  // Gated entirely by uFlicker — at 0 the image is temporally stable
+  // Gated entirely by uFlicker: at 0 the image is temporally stable
   // (mask/scanlines/curvature only, no per-frame animation).
   float bandPos = fract(uTime / 2.5);
   float bandDist = abs(uv.y - bandPos);

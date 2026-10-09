@@ -1,6 +1,6 @@
 // Pixelate + quantise + dither + palette ramp. Runs after SensorEffect
 // (exposure/grain) and before EdgeOutlineEffect in the composed chain.
-// colorMode 'true' is full 24-bit passthrough — no pixelate/dither/quantise,
+// colorMode 'true' is full 24-bit passthrough: no pixelate/dither/quantise,
 // grain and exposure upstream and the outline downstream still apply.
 import { Uniform, Vector2 } from 'three'
 import { Effect } from 'postprocessing'

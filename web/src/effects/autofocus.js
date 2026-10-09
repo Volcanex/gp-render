@@ -1,4 +1,4 @@
-// Autofocus dynamics — turns a raw depth-picking measurement (world distance
+// Autofocus dynamics: turns a raw depth-picking measurement (world distance
 // under the screen-centre crosshair) into the focusDistance actually fed to
 // the DOF effect. Each afMode is a distinct "AF personality"; see
 // sensors/presets.js for the mode catalogue this drives.
@@ -107,7 +107,7 @@ export class AutofocusController {
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
   }
 
-  // 'cinerack': the focus-puller look — constant angular velocity toward the
+  // 'cinerack': the focus-puller look. Constant angular velocity toward the
   // mark, easing out only in the final approach so it never overshoots.
   _updateCinerack(dt, m) {
     if (m != null && Math.abs(m - this.rackTarget) > 0.01) {
@@ -125,7 +125,7 @@ export class AutofocusController {
   }
 
   // 'macro': eager close-focus lens. Snaps quickly onto near subjects, but
-  // reads a far subject as "not macro" — dives toward the near limit first,
+  // reads a far subject as "not macro": dives toward the near limit first,
   // then gives up and crawls out to the real (far) distance.
   _updateMacro(dt, m) {
     if (m == null) return
@@ -181,7 +181,7 @@ export class AutofocusController {
     if (this.huntState === 'MISS') {
       this.missTimer -= dt
       if (this.missTimer <= 0) {
-        // recovery seek is guaranteed to succeed — no chained misses
+        // recovery seek is guaranteed to succeed: no chained misses
         this._enterSeek(this.missTrueTarget, false)
       }
     }

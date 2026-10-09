@@ -1,4 +1,4 @@
-// Screen-space crepuscular rays (GPU Gems 3 ch.13 radial march) — samples the
+// Screen-space crepuscular rays (GPU Gems 3 ch.13 radial march): samples the
 // depth buffer's sky mask along the line from each pixel to the sun's screen
 // position, so rays only appear where geometry occludes the sky.
 import { Effect, EffectAttribute } from 'postprocessing'

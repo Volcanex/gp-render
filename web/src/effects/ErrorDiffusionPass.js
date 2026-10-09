@@ -1,4 +1,4 @@
-// CPU error-diffusion dither (Floyd-Steinberg / Atkinson) — the true serial
+// CPU error-diffusion dither (Floyd-Steinberg / Atkinson): the true serial
 // dithers the GPU threshold modes in VisionEffect.js can't do. Downsamples
 // the frame to a small render target, reads it back to the CPU, diffuses
 // quantisation error pixel-by-pixel in plain JS, then uploads the result as
@@ -12,7 +12,7 @@ const MAX_SMALL_H = 384
 
 // Shared fullscreen-triangle vertex shader: position.xy is used directly as
 // clip space (the geometry already covers NDC), so no camera matrices are
-// involved — this is why the default Pass camera (unconfigured Ortho) is fine.
+// involved: this is why the default Pass camera (unconfigured Ortho) is fine.
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
 void main() {
@@ -40,7 +40,7 @@ const FLOYD_STEINBERG = [
 ]
 
 // Atkinson only redistributes 6/8 of the error (two of the eight eighths are
-// simply dropped) — that's the classic old-Mac trait of blown highlights and
+// simply dropped): that's the classic old-Mac trait of blown highlights and
 // crushed shadows, as distinct from Floyd-Steinberg's full error conservation.
 const ATKINSON = [
   [1, 0, 1 / 8],
@@ -165,7 +165,7 @@ export class ErrorDiffusionPass extends Pass {
     this._outTexture.magFilter = THREE.NearestFilter
     this._outTexture.generateMipmaps = false
 
-    // A resize invalidates any in-flight readback (wrong dimensions) —
+    // A resize invalidates any in-flight readback (wrong dimensions):
     // drop it rather than let it land in a wrongly-sized buffer.
     const gl = this._gl
     if (gl) {
@@ -296,7 +296,7 @@ export class ErrorDiffusionPass extends Pass {
     this._ensureTargets()
 
     if (this._ditherMode !== 'floyd' && this._ditherMode !== 'atkinson') {
-      // Not our mode this frame — passthrough so the chain still swaps cleanly.
+      // Not our mode this frame: passthrough so the chain still swaps cleanly.
       this._copyMaterial.uniforms.uTex.value = inputBuffer.texture
       this.fullscreenMaterial = this._copyMaterial
       renderer.setRenderTarget(this.renderToScreen ? null : outputBuffer)
@@ -308,7 +308,7 @@ export class ErrorDiffusionPass extends Pass {
     // (no WebGL2 fenceSync) does it all inline, zero added latency. The PBO
     // path never blocks the pipeline: it pulls whatever readback the *last*
     // frame kicked off (if the fence has signaled yet), diffuses that, then
-    // immediately kicks the next one — one frame of latency, steady state.
+    // immediately kicks the next one: one frame of latency, steady state.
     if (!this._usePBO) {
       this._downsample(renderer, inputBuffer)
       // read back (bottom-up rows, per WebGL/readRenderTargetPixels convention)
@@ -318,18 +318,18 @@ export class ErrorDiffusionPass extends Pass {
     } else if (this._pending) {
       if (this._resolvePending()) {
         this._diffuse()
-        // upload — DataTexture defaults to flipY = false, i.e. row 0 of the
+        // upload: DataTexture defaults to flipY = false, i.e. row 0 of the
         // buffer becomes texel row 0, and texel row 0 is also what a standard
         // fullscreen quad samples at v = 0 (its "bottom"). Since our buffer's
         // row 0 is *already* the bottom of the image (readPixels is bottom-up
         // too), the two bottom-up conventions cancel out and the result is
         // upright with no explicit flip anywhere in this pass. Do not "fix"
-        // this with a flip — that would flip it upside down.
+        // this with a flip: that would flip it upside down.
         this._outTexture.needsUpdate = true
         this._downsample(renderer, inputBuffer)
         this._kickReadPixels()
       }
-      // else: fence hasn't signaled yet — leave last frame's _outTexture as is
+      // else: fence hasn't signaled yet, so leave last frame's _outTexture as is
     } else {
       // first active frame (or resuming after being out of the chain): kick
       // the initial async readback, nothing to diffuse yet this frame

@@ -1,7 +1,7 @@
 // Sub-pixel camera jitter for temporal upscaling.
 // Halton(2,3) low-discrepancy sequence (FSR2's choice), starting at index 1
 // (index 0 is the degenerate zero sample). Phase count follows FSR2:
-// ceil(8 * n^2) where n is the per-dimension upscale ratio — 18 phases at
+// ceil(8 * n^2) where n is the per-dimension upscale ratio: 18 phases at
 // 1.5x, 32 at 2x. Offsets are in render-resolution pixels, [-0.5, 0.5].
 export function halton(base, index) {
   let f = 1
@@ -42,9 +42,9 @@ export class JitterSequence {
 }
 
 // Applies a sub-pixel NDC offset to the projection matrix (elements 8/9 are
-// the third-column x/y terms; adding to them shifts clip xy by offset*w —
+// the third-column x/y terms; adding to them shifts clip xy by offset*w:
 // a uniform screen-space translation). One render pixel = 2/size in NDC.
-// Restore with clearJitter using the same camera — originals are stashed.
+// Restore with clearJitter using the same camera: originals are stashed.
 export function applyJitter(camera, jx, jy, renderWidth, renderHeight) {
   const e = camera.projectionMatrix.elements
   camera.userData.__taauJitterBackup = [e[8], e[9]]

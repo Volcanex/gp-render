@@ -17,7 +17,7 @@
 //   - Immediately after pass.render(), if `pass.needsDepthBlit`, the
 //     composer blits inputBuffer's depth into a second, stable
 //     DepthTexture (`depthRenderTarget`'s texture) via
-//     gl.blitFramebuffer — this is the texture actually handed to
+//     gl.blitFramebuffer: this is the texture actually handed to
 //     depth-consuming effects via `pass.setDepthTexture(stable)`, kept
 //     separate so nothing samples a texture it is simultaneously
 //     rendering into.
@@ -66,7 +66,7 @@ import { resolveVertexShader, resolveFragmentShader } from './resolve.glsl.js'
 
 // RawShaderMaterial, matching resolve.glsl.js's convention: it declares its
 // own `in vec3 position; in vec2 uv;` attributes and its own `precision`/
-// `layout(location = 0) out` — that only compiles if three skips its normal
+// `layout(location = 0) out`: that only compiles if three skips its normal
 // ShaderMaterial auto-prefix (which redeclares position/uv itself under
 // GLSL3 via '#define attribute in'). Raw also means no automatic
 // modelMatrix/projectionMatrix/etc. uniforms, which this fullscreen
@@ -112,7 +112,7 @@ function makeFullscreenTriangle(material) {
 
 export class TAAUPass extends Pass {
   // ratioX/ratioY are independent per-axis render ratios (e.g. ratioX: 2,
-  // ratioY: 1 renders at half horizontal resolution, full vertical — an
+  // ratioY: 1 renders at half horizontal resolution, full vertical, an
   // interlace-style reconstruction). `ratio` is accepted as a shorthand
   // that sets both axes when the caller doesn't need them to differ.
   constructor(scene, camera, { ratio, ratioX = ratio ?? 2, ratioY = ratio ?? 2 } = {}) {
@@ -190,7 +190,7 @@ export class TAAUPass extends Pass {
       },
       vertexShader: compositeVertexShader,
       fragmentShader: compositeFragmentShader,
-      // GL skips depth writes entirely when depth testing is disabled — the
+      // GL skips depth writes entirely when depth testing is disabled: the
       // test must be ON with an always-pass func for gl_FragDepth to land.
       // (depthTest:false + depthWrite:true silently writes nothing, which
       // left the composer's depth at far-plane: DOF blurred everything and
@@ -304,9 +304,9 @@ export class TAAUPass extends Pass {
     this.readHistory = this.historyA
     this.writeHistory = this.historyB
 
-    // phase count must track the axis with the coarser (larger) ratio —
-    // that's the axis needing more distinct jitter positions to fully cover
-    // its output texels — so use whichever axis's actual pixel dimensions
+    // phase count must track the axis with the coarser (larger) ratio
+    // (that's the axis needing more distinct jitter positions to fully cover
+    // its output texels), so use whichever axis's actual pixel dimensions
     // produce the larger ratio (post-floor(), not just the nominal one)
     if (this.ratioX >= this.ratioY) {
       this.jitter.configure(this.renderWidth, this.outputWidth)
@@ -337,8 +337,8 @@ export class TAAUPass extends Pass {
     renderer.autoClear = prevAutoClear
     renderer.setRenderTarget(prevTarget)
 
-    // restore clean (unjittered) matrices before anything downstream — or
-    // this pass's own resolve math — reads camera.projectionMatrix
+    // restore clean (unjittered) matrices before anything downstream (or
+    // this pass's own resolve math) reads camera.projectionMatrix
     clearJitter(camera)
 
     this._currViewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)

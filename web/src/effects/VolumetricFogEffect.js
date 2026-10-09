@@ -1,4 +1,4 @@
-// Depth-buffer raymarched volumetric fog with light inscattering — makes the
+// Depth-buffer raymarched volumetric fog with light inscattering: makes the
 // coloured lamps glow through the murk with distance-correct occlusion.
 // Runs early (on the clean render) so later stylisation stages dither/quantise
 // the fogged result, not a flat haze on top.
@@ -34,7 +34,7 @@ float phaseHG(float mu, float g) {
   return (1.0 - g2) / pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5);
 }
 
-// single-octave value noise (bilinear-interpolated hash) for drifting wisps —
+// single-octave value noise (bilinear-interpolated hash) for drifting wisps:
 // cheap on purpose, this runs once per march step (~24 evals/pixel)
 float noise2D(vec2 p) {
   vec2 i = floor(p);
@@ -59,7 +59,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   // Reconstruct the view ray depth-free (unprojecting the sampled depth
   // directly blows up to inf/NaN as w->0 near the far plane), then get the
-  // march distance from the linearised depth via getViewZ — the same
+  // march distance from the linearised depth via getViewZ: the same
   // approach the outline effect uses.
   float depth = readDepth(uv);
   vec4 vf = uProjInv * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
@@ -70,7 +70,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 rayDir = normalize((uCamWorld * vec4(viewRay, 0.0)).xyz);
   vec3 camPos = uCamWorld[3].xyz;
 
-  const int STEPS = 16; // steps * lights is the worst-case perf budget — actual cost is usually
+  const int STEPS = 16; // steps * lights is the worst-case perf budget: actual cost is usually
                         // lower thanks to range culling and early transmittance termination below
   float stepLen = rayLen / float(STEPS);
 
@@ -78,14 +78,14 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float transmittance = 1.0;
   vec3 accum = vec3(0.0);
 
-  // uDensity ~0 means no fog anywhere (e.g. fully faded in/out) — skip the
+  // uDensity ~0 means no fog anywhere (e.g. fully faded in/out): skip the
   // march entirely rather than accumulate 16 steps of zero contribution
   if (uDensity > 0.0001) {
     vec2 wispTimeOffset = vec2(uTime * 0.03, uTime * 0.017); // pos-independent, hoisted out of the loop
     vec3 pos = camPos + rayDir * jitter;
     for (int i = 0; i < STEPS; i++) {
       // height falloff: fog pools over the lake (uFogBase) and thins with
-      // altitude over uFogHeight — looking up clears, looking across is thickest
+      // altitude over uFogHeight: looking up clears, looking across is thickest
       float heightAtten = exp(-max(pos.y - uFogBase, 0.0) / uFogHeight);
       // slow drifting patchiness, remapped from [0,1] noise to [0.55, 1.45]
       vec2 wispUv = pos.xz * 0.06 + wispTimeOffset;
@@ -99,7 +99,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
         if (l >= uLightCount) break;
         vec3 toLight = uLightPos[l] - pos;
         float d2 = dot(toLight, toLight);
-        if (d2 > LIGHT_RANGE_SQ) continue; // falloff is negligible past here — skip the light entirely
+        if (d2 > LIGHT_RANGE_SQ) continue; // falloff is negligible past here: skip the light entirely
         float d = sqrt(d2);
         vec3 lightDir = toLight / max(d, 1e-5);
         float falloff = 1.0 / (1.0 + 0.15 * d2);
@@ -109,10 +109,10 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
       }
 
       // no ambient self-emission: real fog doesn't glow, it only occludes and
-      // scatters actual lights — the scene's distance fog handles colour fade
+      // scatters actual lights: the scene's distance fog handles colour fade
       pos += rayDir * stepLen;
 
-      // fully opaque fog ahead — further steps add negligible scatter, so stop marching
+      // fully opaque fog ahead: further steps add negligible scatter, so stop marching
       if (transmittance < 0.02) break;
     }
   }

@@ -157,7 +157,7 @@ export default function CameraRig({ mode, focalLength, sceneId }) {
   useFocalLength(focalLength)
   const { camera } = useThree()
 
-  // reset to the spawn point whenever the scene changes — carrying a walked
+  // reset to the spawn point whenever the scene changes: carrying a walked
   // position into a different scene's terrain can leave the camera
   // underground (black frame, rays starting inside geometry)
   useEffect(() => {

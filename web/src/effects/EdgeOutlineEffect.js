@@ -1,4 +1,4 @@
-// Depth-sobel silhouette outline — last stage in the chain, composited over
+// Depth-sobel silhouette outline: last stage in the chain, composited over
 // the already-dithered/palettised output. Inverts colour rather than drawing
 // fixed black/white so it reads on any palette (Pope's readability trick).
 import { Effect, EffectAttribute } from 'postprocessing'

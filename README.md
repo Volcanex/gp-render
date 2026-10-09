@@ -21,4 +21,4 @@ Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You 
 
 Required Notice: Copyright Gabriel Penman (https://gabrielpenman.com)
 
-Blue-noise textures: Christoph Peters, CC0, momentsingraphics.de/BlueNoise.html
+Blue-noise texture (`web/public/textures/bluenoise128.png`): Christoph Peters, CC0, momentsingraphics.de/BlueNoise.html

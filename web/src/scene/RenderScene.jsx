@@ -90,7 +90,7 @@ function fbm3(x, y, z, seed, octaves = 3) {
   return sum / total
 }
 
-// ============ terrain + lake shape (module-level, pure — shared by displacement, rock scatter and pole path) ============
+// ============ terrain + lake shape (module-level, pure: shared by displacement, rock scatter and pole path) ============
 
 const LAKE_CENTER = [-15, 0]
 const LAKE_RADIUS = 25
@@ -107,7 +107,7 @@ function lakeFactor(x, z) {
   return smooth(t)
 }
 
-// camera spawns here (walk mode, eye height 1.7) looking toward the lake — keep it flat
+// camera spawns here (walk mode, eye height 1.7) looking toward the lake: keep it flat
 // so the first frame isn't a rock face, with a smooth falloff back into the noise
 const SPAWN_CENTER = [4, 5]
 const SPAWN_RADIUS = 8
@@ -129,7 +129,7 @@ function terrainHeight(x, z) {
   return base * (1 - pf)
 }
 
-// ============ pole path — single source, also exported for the volumetric fog pass ============
+// ============ pole path: single source, also exported for the volumetric fog pass ============
 
 const POLE_COUNT = 9
 const POLE_SPACING = 9
@@ -285,10 +285,10 @@ export default function RenderScene({ bands, timeOfDay = 14, torch = false }) {
   const dayMix = clamp01((sunElevation + 1) / 2)
   const dayFactor = Math.max(0, Math.min(1, sunElevation))
 
-  // Render barely sees its sun through the haze — weak directional light, but the haze
+  // Render barely sees its sun through the haze: weak directional light, but the haze
   // scatters it everywhere, so shadow faces still get a warm orange fill, never true black
   const sunIntensity = visible ? 0.15 + dayFactor * 0.35 : 0
-  // night floors drop hard — the pole lights and torch should be the only meaningful
+  // night floors drop hard: the pole lights and torch should be the only meaningful
   // light after dark, while daytime peaks stay where they were (0.57 hemi, 0.16 ambient)
   const hemiIntensity = visible ? 0.03 + dayFactor * 0.54 : 0
   const ambientIntensity = visible ? 0.02 + dayFactor * 0.14 : 0
@@ -410,7 +410,7 @@ export default function RenderScene({ bands, timeOfDay = 14, torch = false }) {
         <meshStandardMaterial color={vis('#ffffff')} map={rockTex} roughness={0.95} />
       </mesh>
 
-      {/* methane lake — the money shot: coloured pole lights mirrored in near-black liquid */}
+      {/* methane lake, the money shot: coloured pole lights mirrored in near-black liquid */}
       <mesh
         position={[LAKE_CENTER[0], -0.5, LAKE_CENTER[1]]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -435,7 +435,7 @@ export default function RenderScene({ bands, timeOfDay = 14, torch = false }) {
         <meshStandardMaterial color={vis('#40e0ff')} emissive={visible ? '#20a0c0' : '#000000'} emissiveIntensity={visible ? 0.8 : 0} />
       </mesh>
 
-      {/* rocks — individual meshes reusing 4 displaced geometry variants */}
+      {/* rocks: individual meshes reusing 4 displaced geometry variants */}
       {rocks.map((r, i) => {
         const jitteredColor = jitterColor('#a9601f', 0.18, r.hueJitter)
         return (

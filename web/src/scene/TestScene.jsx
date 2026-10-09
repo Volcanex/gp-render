@@ -258,7 +258,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
   const nightDepth = Math.max(0, Math.min(1, -sunElevation)) // 0 at/above horizon, 1 at midnight
   const sunColor = (dayFactor < 0.5 ? SUN_NIGHT.clone().lerp(SUN_LOW, dayFactor * 2) : SUN_LOW.clone().lerp(SUN_NOON, (dayFactor - 0.5) * 2))
   // hemisphere fill pivots at dusk (elevation 0): warm ~0.2 there, brightens to
-  // ~0.45 sky-blue at noon, dims to ~0.08 blue at midnight — never pitch black
+  // ~0.45 sky-blue at noon, dims to ~0.08 blue at midnight: never pitch black
   const ambientIntensity = sunElevation >= 0 ? 0.2 + dayFactor * 0.25 : 0.2 - nightDepth * 0.12
   const skyColor = sunElevation >= 0 ? SKY_DUSK.clone().lerp(SKY_NOON, dayFactor) : SKY_DUSK.clone().lerp(SKY_NIGHT, nightDepth)
   const groundColor = sunElevation >= 0 ? GROUND_DUSK.clone().lerp(GROUND_DAY, dayFactor) : GROUND_DUSK.clone().lerp(GROUND_NIGHT, nightDepth)
@@ -275,7 +275,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
   const hueTex = useHueTexture()
   const maps = useSurfaceTextures()
 
-  // wire the torch's target once — its position is updated every frame instead
+  // wire the torch's target once: its position is updated every frame instead
   useLayoutEffect(() => {
     if (torchRef.current && torchTargetRef.current) torchRef.current.target = torchTargetRef.current
   }, [])
@@ -356,7 +356,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
   })
 
   // buried: invisible unless ir is on, then glows faintly in irColor (scaled by
-  // irGain) — for things that are only "seen" as heat, not as physical geometry
+  // irGain): for things that are only "seen" as heat, not as physical geometry
   const buried = (bgHex, intensity) => ({
     color: ir ? irColor : bgHex,
     emissive: ir ? irColor : '#000000',
@@ -367,7 +367,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
 
   return (
     <>
-      {/* lighting — only the visible band illuminates the scene; sun swings
+      {/* lighting: only the visible band illuminates the scene; sun swings
           across the sky with timeOfDay, hemisphere fill keeps shadow sides
           readable outdoors, point lights carry the night */}
       <hemisphereLight color={skyColor} groundColor={groundColor} intensity={visible ? ambientIntensity : 0} />
@@ -388,7 +388,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
       <pointLight position={[-2, 1.8, -1.5]} intensity={visible ? 0.9 * nightBoost : 0} distance={8} color="#ff9040" />
       {/* far-out fill so the edges of the litter field aren't pitch black */}
       <pointLight position={[22, 6, -18]} intensity={visible ? 0.5 * nightBoost : 0} distance={40} color="#88aacc" />
-      {/* handheld torch — parented to the camera via position copy each frame, no shadow (perf) */}
+      {/* handheld torch: parented to the camera via position copy each frame, no shadow (perf) */}
       <spotLight
         ref={torchRef}
         angle={0.5}
@@ -406,7 +406,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         <meshStandardMaterial color={vis('#ffffff')} {...heat(6)} />
       </mesh>
 
-      {/* floor — the whole 80x80 field */}
+      {/* floor: the whole 80x80 field */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[80, 80]} />
         <meshStandardMaterial
@@ -416,7 +416,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         />
       </mesh>
 
-      {/* calibration nook — same room as before, now one fragment among ruins */}
+      {/* calibration nook: same room as before, now one fragment among ruins */}
       <mesh position={[0, 3.5, -5]} receiveShadow>
         <planeGeometry args={[14, 7]} />
         <meshStandardMaterial
@@ -433,13 +433,13 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
           roughness={0.95}
         />
       </mesh>
-      {/* dither reference wall — always plain, never textured */}
+      {/* dither reference wall: always plain, never textured */}
       <mesh position={[6, 3.5, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[14, 7]} />
         <meshStandardMaterial color={vis('#b0b0b0')} roughness={0.95} />
       </mesh>
 
-      {/* hidden UV markings — glow in uvColor whenever uv is on */}
+      {/* hidden UV markings: glow in uvColor whenever uv is on */}
       <mesh position={[0, 2.2, -4.95]} rotation={[0, 0, 0]}>
         <ringGeometry args={[0.5, 0.7, 32]} />
         <meshStandardMaterial {...marking(vis('#c4c4c4'))} />
@@ -453,7 +453,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         <meshStandardMaterial {...marking(vis('#c4c4c4'))} />
       </mesh>
 
-      {/* torus knot centrepiece, slowly rotating — mild IR warmth */}
+      {/* torus knot centrepiece, slowly rotating: mild IR warmth */}
       <mesh ref={knotRef} position={[0, 1.4, 0]} castShadow receiveShadow>
         <torusKnotGeometry args={[0.7, 0.22, 128, 32]} />
         <meshStandardMaterial
@@ -465,7 +465,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         />
       </mesh>
 
-      {/* roughness sweep spheres — 5 hues, roughness 0→1, cold in IR */}
+      {/* roughness sweep spheres: 5 hues, roughness 0→1, cold in IR */}
       {roughnessSteps.map((r, i) => (
         <mesh key={i} position={[-4 + i * 1.2, 0.4, 2.5]} castShadow>
           <sphereGeometry args={[0.35, 32, 32]} />
@@ -491,13 +491,13 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         />
       </mesh>
 
-      {/* gradient strip: DataTexture luminance ramp — dither acid test */}
+      {/* gradient strip: DataTexture luminance ramp, the dither acid test */}
       <mesh position={[-2.5, 1, 3.8]} rotation={[0, Math.PI / 8, 0]}>
         <planeGeometry args={[3, 1]} />
         <meshBasicMaterial map={gradientTex} toneMapped={false} color={vis('#ffffff')} />
       </mesh>
 
-      {/* hue strip: full-saturation hue circle sweep — colour dither/quantisation acid test */}
+      {/* hue strip: full-saturation hue circle sweep, the colour dither/quantisation acid test */}
       <mesh position={[-2.5, 2.1, 3.8]} rotation={[0, Math.PI / 8, 0]}>
         <planeGeometry args={[3, 0.6]} />
         <meshBasicMaterial map={hueTex} toneMapped={false} color={vis('#ffffff')} />
@@ -517,7 +517,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         })}
       </group>
 
-      {/* moving pendulum sphere — hot IR source */}
+      {/* moving pendulum sphere: hot IR source */}
       <group position={[0, 0, -1]}>
         <mesh ref={pendulumRef} position={[0, 1.6, 0]} castShadow>
           <sphereGeometry args={[0.25, 24, 24]} />
@@ -655,7 +655,7 @@ export default function TestScene({ bands, textures = true, timeOfDay = 14, torc
         </mesh>
       ))}
 
-      {/* buried warm pipe line — invisible until ir reveals its heat trace */}
+      {/* buried warm pipe line: invisible until ir reveals its heat trace */}
       <mesh position={[0, 0.02, PIPE_RUN_Z]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[56, 1]} />
         <meshStandardMaterial {...buried(vis('#101010'), 1.8)} />

@@ -130,7 +130,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   }, [volFog, params.fogDensity, params.fogHeight])
 
 
-  // Detail/character systems — each exists only while its dials are up
+  // Detail/character systems: each exists only while its dials are up
   const aoFx = useMemo(
     () => (params.ao && params.aoStrength > 0 ? new DepthAOEffect() : null),
     [params.ao && params.aoStrength > 0],
@@ -160,7 +160,7 @@ export default function VisionPipeline({ params, clutTexture }) {
   const sunScratch = useRef({ dir: new THREE.Vector3(), pos: new THREE.Vector3(), fwd: new THREE.Vector3(), col: new THREE.Color() })
 
   // Rolling shutter (geometric readout skew, no blur) and optional camera
-  // motion blur — both created only while their amount is non-zero
+  // motion blur: both created only while their amount is non-zero
   const rollFx = useMemo(
     () => (params.rollingShutter > 0 ? new RollingShutterEffect() : null),
     [params.rollingShutter > 0],
@@ -200,7 +200,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     if (vignetteFx) vignetteFx.darkness = params.vignette
   }, [params, bloom, chromAb, vignetteFx])
 
-  // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader —
+  // True error diffusion (floyd/atkinson) is a serial CPU pass, not a shader:
   // it replaces VisionEffect in the chain when selected.
   const errorDiffusion = params.ditherMode === 'floyd' || params.ditherMode === 'atkinson'
   const edPass = useMemo(() => new ErrorDiffusionPass(), [])
@@ -270,7 +270,7 @@ export default function VisionPipeline({ params, clutTexture }) {
     }
 
     // camera angular velocity in uv units/frame (rolling shutter) and
-    // view-projection pair (motion blur) — both camera-only, like TAAU
+    // view-projection pair (motion blur): both camera-only, like TAAU
     if (rollFx || blurFx) {
       euler.setFromQuaternion(camera.quaternion, 'YXZ')
       const vfov = THREE.MathUtils.degToRad(camera.fov)
@@ -306,7 +306,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       ae.update(delta, null)
     }
     // effective exposure: priority modes float exactly one variable toward
-    // the meter, sliders stay the base values (reused object — a fresh
+    // the meter, sliders stay the base values (reused object: a fresh
     // spread every frame feeds the GC and causes jank)
     const eff = Object.assign(effScratch.current, params)
     if (params.exposureMode === 'auto-ev') eff.ev = params.ev + ae.stops
@@ -336,7 +336,7 @@ export default function VisionPipeline({ params, clutTexture }) {
       taauTo: [taau.outputWidth, taau.outputHeight],
     }
     if (dof) {
-      // sample crosshair depth — throttled: the readback forces a GPU sync,
+      // sample crosshair depth, throttled: the readback forces a GPU sync,
       // so doing it every frame costs real frame time
       pickCooldown.current -= delta
       if (picker && params.afMode !== 'manual' && !reading.current && pickCooldown.current <= 0) {

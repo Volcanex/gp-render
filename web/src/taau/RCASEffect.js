@@ -1,4 +1,4 @@
-// RCAS — AMD FidelityFX Robust Contrast-Adaptive Sharpening (FSR 1.0,
+// RCAS: AMD FidelityFX Robust Contrast-Adaptive Sharpening (FSR 1.0,
 // ffx_fsr1.h, MIT). In the TAAU pipeline this runs strictly AFTER temporal
 // accumulation (FSR2 pass order) to recover sharpness lost to resampling.
 import { Effect } from 'postprocessing'

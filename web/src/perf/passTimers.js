@@ -1,6 +1,6 @@
 // Lightweight CPU-side pass timing for the post-processing chain.
 //
-// This measures wall-clock time inside each pass's render() call — that
+// This measures wall-clock time inside each pass's render() call: that
 // captures JS overhead plus any GPU sync stall a pass forces (e.g. the
 // readback in ErrorDiffusionPass), but NOT pure-GPU shader cost that never
 // blocks the CPU. A shader-only pass will read near 0ms here even if it's
@@ -10,7 +10,7 @@
 export const perfRegistry = {
   frames: 0,
   fps: 0,
-  low1: 0, // 1% low fps — avg of the worst 1% of frames in the window, the number that tracks felt stutter
+  low1: 0, // 1% low fps: avg of the worst 1% of frames in the window, the number that tracks felt stutter
   spikes: 0, // frames over 33ms (sub-30fps) in the window
   passes: [], // [{ name, ms, gpuMs }]
 }
@@ -24,14 +24,14 @@ let lastFrameTime = null
 const frameDeltas = []
 
 // GPU timer query state (EXT_disjoint_timer_query_webgl2). The extension is
-// frequently unavailable (macOS/ANGLE-Metal) — everything here degrades to
+// frequently unavailable (macOS/ANGLE-Metal): everything here degrades to
 // CPU-only timing when it's missing.
 let gpuGl = null
 let gpuExt = null
 let gpuTimersAvailable = false
 // Only one timer query can be active (between beginQuery/endQuery) at a time.
 // Since pass render() calls are synchronous and sequential this is naturally
-// true, but we still guard it — a pass that finds a query already active
+// true, but we still guard it: a pass that finds a query already active
 // just skips GPU timing for that frame.
 let queryActive = false
 
@@ -129,7 +129,7 @@ export function attachPassTimers(composer) {
         if (e.inFlight.length < QUERY_POOL_SIZE) {
           e.inFlight.push(query)
         } else {
-          // in-flight queue full (GPU falling behind resolving queries) —
+          // in-flight queue full (GPU falling behind resolving queries):
           // drop this one back into the pool unused rather than growing unbounded
           e.queryPool.push(query)
         }
@@ -159,7 +159,7 @@ export function markFrame() {
       if (frameDeltas.length > WINDOW_SIZE) frameDeltas.shift()
 
       // The plain fps EMA smooths away spikes, so it can read "60" on a
-      // stream that periodically hitches — this pair is the jank-honest
+      // stream that periodically hitches: this pair is the jank-honest
       // complement: 1% low is the avg of the worst ~1% of frames in the
       // window (min 1 frame), spikes counts frames over SPIKE_MS.
       const sorted = [...frameDeltas].sort((a, b) => b - a)

@@ -1,7 +1,7 @@
 // Framework-free core of the raymarch scene: the GLSL, the sun model, and
 // the JS terrain replica. Imported by BOTH RaymarchScene.jsx (the interactive
-// SPA) and scenes-lib/raymarch.js (the scenes.mjs export consumed by gdesign)
-// — keep it free of React/R3F/Leva so the lib build stays framework-free.
+// SPA) and scenes-lib/raymarch.js (the scenes.mjs export consumed by gdesign).
+// Keep it free of React/R3F/Leva so the lib build stays framework-free.
 import * as THREE from 'three'
 
 export const vertexShader = /* glsl */ `
@@ -79,7 +79,7 @@ float hash3(vec3 p) {
   return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
-// cheap 2D value noise for terrain / clouds — bilinear on a hashed lattice
+// cheap 2D value noise for terrain / clouds: bilinear on a hashed lattice
 float noise2D(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -102,7 +102,7 @@ float fbm2(vec2 p) {
   return f;
 }
 
-// trilinear 3D value noise — only sampled where an object's cheap bounding
+// trilinear 3D value noise: only sampled where an object's cheap bounding
 // distance already gates it, so the 8 hash3 taps stay off the hot path
 float noise3D(vec3 p) {
   vec3 i = floor(p);
@@ -144,7 +144,7 @@ vec3 groundColor(vec3 p) {
   return mix(vec3(0.35), vec3(0.55), check);
 }
 
-// returns (distance, material id) — every branch below is gated by a cheap
+// returns (distance, material id): every branch below is gated by a cheap
 // bounding-sphere/box test so the expensive noise/loop work only runs for
 // rays actually near that object, keeping the 112-step march affordable
 vec2 map(vec3 p) {
@@ -154,7 +154,7 @@ vec2 map(vec3 p) {
   float d = p.y - terrainH;
   float mat = 0.0;
 
-  // THE organism: 6 spheres orbiting/pulsing into one smooth-union blob —
+  // THE organism: 6 spheres orbiting/pulsing into one smooth-union blob:
   // constantly splitting and merging, the thing pure geometry can't do
   vec3 orgCenter = vec3(0.0, 1.7, 0.0);
   float boundOrg = length(p - orgCenter) - 1.35;
@@ -192,7 +192,7 @@ vec2 map(vec3 p) {
   }
 
   // columns receding toward the horizon, domain-repeated with per-cell
-  // height jitter — fog (not a repeat clamp) is what bounds the field
+  // height jitter: fog (not a repeat clamp) is what bounds the field
   if (p.y < 4.0) {
     vec2 cell = floor(p.xz / 2.2 + 0.5);
     vec2 local = p.xz - cell * 2.2;
@@ -209,7 +209,7 @@ float mapDist(vec3 p) {
 }
 
 vec3 calcNormal(vec3 p) {
-  // tetrahedron gradient — 4 SDF taps
+  // tetrahedron gradient: 4 SDF taps
   const float h = 1e-3;
   const vec2 k = vec2(1.0, -1.0);
   return normalize(
@@ -249,7 +249,7 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
 vec3 shadeAlbedo(float matId, vec3 p) {
   if (matId < 0.5) return groundColor(p);
   if (matId < 1.5) {
-    // the organism is the centrepiece — kept saturated and bright (~0.8) so
+    // the organism is the centrepiece: kept saturated and bright (~0.8) so
     // it pops against the deliberately paler terrain/columns/carve/asteroid
     float pulse = 0.5 + 0.5 * sin(uTime * 0.8);
     return mix(vec3(0.02, 0.75, 0.62), vec3(0.85, 0.08, 0.6), pulse);
@@ -270,7 +270,7 @@ vec3 spectrumEmission(float matId, vec3 p) {
   if (uSeeIr > 0.5) {
     // temperature per material: organism is alive and hot, asteroid mildly
     // warm, terrain carries faint residual warmth in patches (reuses the
-    // terrain noise already computed for the heightfield — no extra taps),
+    // terrain noise already computed for the heightfield: no extra taps),
     // columns/carve are cold and contribute nothing
     float heat = 0.0;
     if (matId < 0.5) heat = smoothstep(0.6, 0.9, fbm2(p.xz * 0.15)) * 0.15;
@@ -292,7 +292,7 @@ vec3 spectrumEmission(float matId, vec3 p) {
       }
     }
     if (matId < 0.5) {
-      // large ring inscribed on the terrain, off-centre — pure distance test
+      // large ring inscribed on the terrain, off-centre: pure distance test
       float ringDist = abs(length(p.xz - vec2(4.0, -3.5)) - 3.0);
       e += uUvColor * smoothstep(0.12, 0.0, ringDist) * 1.2 * uUvGain;
     }
@@ -302,7 +302,7 @@ vec3 spectrumEmission(float matId, vec3 p) {
 }
 
 // gradient sky (horizon glow -> dark zenith) + sun disc + fbm cloud band,
-// all keyed off uSunDir/uSunColor/uSkyHorizon/uSkyZenith — the time-of-day
+// all keyed off uSunDir/uSunColor/uSkyHorizon/uSkyZenith: the time-of-day
 // trig runs once per frame on the JS side (computeSunState below), not here.
 // Also doubles as the far-fog target so geometry fades into the same sky.
 vec3 skyColor(vec3 rd) {
@@ -314,7 +314,7 @@ vec3 skyColor(vec3 rd) {
 
   float cloud = fbm2(vec2(rd.x, rd.z) / max(abs(rd.y), 0.05) * 0.5 + uTime * 0.015);
   cloud = smoothstep(0.5, 0.8, cloud) * smoothstep(0.02, 0.2, rd.y) * (1.0 - smoothstep(0.35, 0.85, rd.y));
-  // clouds capped at ~mid-grey even at full daylight — a bright-white band
+  // clouds capped at ~mid-grey even at full daylight: a bright-white band
   // would drag the frame average up right where the eye lands (horizon)
   vec3 cloudColor = mix(vec3(0.08, 0.09, 0.13), vec3(0.55, 0.56, 0.6), uDayFactor);
   col = mix(col, cloudColor, cloud * 0.45);
@@ -343,7 +343,7 @@ void main() {
   }
 
   if (matId < 0.0 || t > MAX_DIST) {
-    // a sensor blind to visible light receives zero visible light — no sky glow
+    // a sensor blind to visible light receives zero visible light: no sky glow
     vec3 miss = uSeeVis > 0.5 ? skyColor(rd) : vec3(0.0);
     fragColor = vec4(miss, 1.0);
     gl_FragDepth = 1.0;
@@ -356,7 +356,7 @@ void main() {
   float shadow = softShadow(p + n * 0.02, lightDir, 0.02, 8.0, 16.0);
 
   vec3 albedo = shadeAlbedo(matId, p);
-  // visible=false means zero visible light reaches the sensor — the world
+  // visible=false means zero visible light reaches the sensor: the world
   // then reads only through whatever spectrum bands (IR/UV) are enabled
   vec3 lit = uSeeVis > 0.5
     ? albedo * (uAmbientColor * ao + uSunColor * diff * shadow)
@@ -416,7 +416,7 @@ export function computeSunState(timeOfDay) {
   const ambientColor = new THREE.Vector3(0.16, 0.17, 0.2)
     .lerp(new THREE.Vector3(0.05, 0.07, 0.14), night)
 
-  // day tones sit near luminance ~0.5 (mid-grey), not bright white-blue —
+  // day tones sit near luminance ~0.5 (mid-grey), not bright white-blue:
   // the post chain's exposure + shadow-lift pushes brightness up further
   // night sky must be near-zero: real night sky is orders of magnitude
   // darker than lit surfaces, so auto-ISO gain can't push it to white
@@ -432,7 +432,7 @@ export function computeSunState(timeOfDay) {
 
 // JS replica of the fragment shader's terrain height (hash21/noise2D/fbm2 and
 // the terrainH formula in `map()`) so walk mode can sample ground height
-// without a GPU readback. Must stay numerically in sync with the GLSL above —
+// without a GPU readback. Must stay numerically in sync with the GLSL above:
 // any change to hash21/noise2D/fbm2 or the 0.15/1.5/-0.4 terrain constants
 // there needs the same change mirrored here.
 function hash21JS(x, y) {
@@ -472,7 +472,7 @@ export function terrainHeight(x, z) {
   return fbm2JS(x * 0.15, z * 0.15) * 1.5 - 0.4
 }
 
-// Builds the full uniforms object for the raymarch ShaderMaterial — shared so
+// Builds the full uniforms object for the raymarch ShaderMaterial: shared so
 // the SPA wrapper and the scenes-lib export can't drift on uniform names.
 export function createRaymarchUniforms() {
   return {

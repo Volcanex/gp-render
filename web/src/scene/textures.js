@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-// mulberry32 — small, fast, seeded PRNG. Same seed => same byte-for-byte texture.
+// mulberry32: small, fast, seeded PRNG. Same seed => same byte-for-byte texture.
 function mulberry32(seed) {
   let a = seed >>> 0
   return function rand() {

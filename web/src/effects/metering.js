@@ -29,7 +29,7 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 export class MeteringPass extends Pass {
   constructor() {
     super('MeteringPass')
-    // We only sample — never transform the image — so the composer keeps
+    // We only sample (never transform the image) so the composer keeps
     // feeding subsequent passes the same input buffer untouched.
     this.needsSwap = false
 
@@ -45,7 +45,7 @@ export class MeteringPass extends Pass {
 
     // UnsignedByteType is required here even though the composer's buffers
     // are HalfFloat: readRenderTargetPixels needs a readable (byte) target.
-    // Values >1 (highlights) clamp to 1 — acceptable for metering.
+    // Values >1 (highlights) clamp to 1: acceptable for metering.
     this._smallRT = new THREE.WebGLRenderTarget(RT_SIZE, RT_SIZE, {
       type: THREE.UnsignedByteType,
       format: THREE.RGBAFormat,
@@ -140,7 +140,7 @@ export class MeteringPass extends Pass {
 
   // requestSample() arms; the actual read may take one or more frames to
   // resolve once kicked (async PBO + fence), which the AE controller
-  // tolerates fine — it's already a ~0.6s lag controller.
+  // tolerates fine: it's already a ~0.6s lag controller.
   render(renderer, inputBuffer) {
     if (!this._usePBO) {
       // Sync fallback (no WebGL2 fenceSync): sample-on-request, inline.
@@ -154,7 +154,7 @@ export class MeteringPass extends Pass {
 
     if (this._pending) {
       if (this._resolvePending()) this._computeSample()
-      // else: fence hasn't signaled yet — keep waiting, lastSample unchanged
+      // else: fence hasn't signaled yet, so keep waiting (lastSample unchanged)
       return
     }
 
@@ -166,7 +166,7 @@ export class MeteringPass extends Pass {
   }
 
   setSize() {
-    // fixed 16x16 target — nothing to resize
+    // fixed 16x16 target: nothing to resize
   }
 
   dispose() {
@@ -193,7 +193,7 @@ export class AutoExposureController {
     this.mode = mode
   }
 
-  // exposure compensation in stops — a camera's +/- dial; negative keeps
+  // exposure compensation in stops: a camera's +/- dial; negative keeps
   // dark scenes dark instead of letting AE normalise everything to mid-grey
   setBias(stops) {
     this.bias = stops || 0
@@ -211,7 +211,7 @@ export class AutoExposureController {
       return this.stops
     }
 
-    // 'auto-ev' and 'auto-iso' share identical dynamics here — auto-iso just
+    // 'auto-ev' and 'auto-iso' share identical dynamics here: auto-iso just
     // consumes the same `stops` value differently, via autoIso() below.
     if (meteredLuma != null) {
       const err = Math.log2(TARGET_LUMA / Math.max(meteredLuma, 1e-4)) + this.bias

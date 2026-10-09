@@ -1,4 +1,4 @@
-// Depth-based screen-space ambient occlusion — pure POST effect reading only
+// Depth-based screen-space ambient occlusion: pure POST effect reading only
 // the depth buffer, since render's temporal upscaler renders the scene once
 // and this pass runs after it (no scene re-render, no normal buffer).
 //
@@ -29,7 +29,7 @@ vec3 reconstructViewPos(const in vec3 ndc, const in float viewZ, const in mat3 p
 }
 
 // Interleaved gradient noise (Jimenez 2014, "Next Generation Post Processing
-// in Call of Duty: Advanced Warfare") — cheap per-pixel dither used to spin
+// in Call of Duty: Advanced Warfare"): cheap per-pixel dither used to spin
 // the sample spiral so banding turns into noise the temporal/output dither
 // downstream can hide, letting the sample count drop from 12 to 8.
 float interleavedGradientNoise(const in vec2 p) {

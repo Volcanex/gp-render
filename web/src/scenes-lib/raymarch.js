@@ -1,6 +1,6 @@
 // Plain Three.js (no React/R3F/Leva) wrapper around the raymarch scene, for
 // the scenes.mjs contract. Mirrors the uniform plumbing in
-// ../scene/RaymarchScene.jsx — keep the two in sync when the shader's
+// ../scene/RaymarchScene.jsx: keep the two in sync when the shader's
 // uniforms change (both import from raymarch-core.js so the shader/JS
 // terrain/sun-state code itself can't drift).
 import * as THREE from 'three'

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI()
 
 # scenes.mjs is dynamically imported cross-origin by the gdesign compositor
-# (design.gabrielpenman.com) — GET-only, world-readable static file.
+# (design.gabrielpenman.com): GET-only, world-readable static file.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

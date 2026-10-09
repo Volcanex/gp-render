@@ -1,4 +1,4 @@
-// DOM overlay meant to be rendered outside the R3F <Canvas> by App —
+// DOM overlay meant to be rendered outside the R3F <Canvas> by App:
 // it just polls perfRegistry, it never touches the scene.
 import { useEffect, useState } from 'react'
 import { perfRegistry } from './passTimers.js'

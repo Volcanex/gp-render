@@ -153,7 +153,7 @@ export function saveUserMaterial(spec) {
   try {
     window.localStorage.setItem(STORE_KEY, JSON.stringify(all.slice(0, 16)))
   } catch {
-    // quota — drop silently, the wall copy still exists this session
+    // quota: drop silently, the wall copy still exists this session
   }
   return all.slice(0, 16)
 }

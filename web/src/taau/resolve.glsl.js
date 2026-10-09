@@ -1,4 +1,4 @@
-// three-taau — temporal resolve shader.
+// three-taau: temporal resolve shader.
 //
 // This is the core of the upscaler: it runs once per output pixel on a
 // fullscreen triangle and turns (a) this frame's jittered low-resolution
@@ -7,17 +7,17 @@
 // published techniques, each cited at its point of use:
 //
 //   - AMD FidelityFX Super Resolution 2 (FSR2), ffx_fsr2_upsample.h /
-//     ffx_fsr2_reproject.h — MIT licensed. Source of the upsample
+//     ffx_fsr2_reproject.h: MIT licensed. Source of the upsample
 //     confidence weighting, closest-depth dilation and the overall
 //     "current + reprojected history" resolve structure.
 //   - Brian Karis, "High Quality Temporal Supersampling", SIGGRAPH 2014
-//     Advances in Real-Time Rendering course notes — neighbourhood
+//     Advances in Real-Time Rendering course notes: neighbourhood
 //     clipping and the tonemapped (firefly-suppressing) blend.
-//   - Marco Salvi, "An Excursion in Temporal Supersampling", GDC 2016 —
+//   - Marco Salvi, "An Excursion in Temporal Supersampling", GDC 2016:
 //     variance-based neighbourhood AABB (mean +/- gamma * stddev) in place
 //     of a min/max clamp box.
 //   - Jimenez et al., "A Journey Through Post-Processing in Filmic Games" /
-//     the Call of Duty temporal AA talks — the 5-tap Catmull-Rom history
+//     the Call of Duty temporal AA talks: the 5-tap Catmull-Rom history
 //     filter, exploiting bilinear hardware sampling to approximate bicubic
 //     with 5 taps instead of 16.
 //   - Karis (2014) and the Eurographics 2020 TAA survey (Xiao et al.) also
@@ -85,7 +85,7 @@ layout(location = 0) out vec4 fragColor;
 // ---------------------------------------------------------------------
 // YCoCg <-> RGB. Cheaper than YCbCr (no matrix, just adds/shifts) and its
 // Co/Cg chroma plane is close enough to axis-aligned that a per-channel
-// AABB clip (below) holds up much better than clipping raw RGB — this is
+// AABB clip (below) holds up much better than clipping raw RGB: this is
 // the space Karis 2014 and the Eurographics 2020 TAA survey both clip in.
 // ---------------------------------------------------------------------
 vec3 rgb2ycocg(vec3 c) {
@@ -103,7 +103,7 @@ vec3 ycocg2rgb(vec3 c) {
 }
 
 // Rec.709 luma, used only for the Karis tonemapped blend below (distinct
-// from the YCoCg Y channel used for clipping/disocclusion — this one just
+// from the YCoCg Y channel used for clipping/disocclusion: this one just
 // needs to be a reasonable brightness estimate for the 1/(1+L) weighting).
 float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -176,14 +176,14 @@ void main() {
   // Core upsampling insight (FSR2 ffx_fsr2_upsample.h): NEVER resample
   // the current frame. tCurrent was rendered through a projection
   // shifted by uJitter (see jitter.js applyJitter), so its samples don't
-  // sit at texel centers in "true", unjittered scene space — but that's
+  // sit at texel centers in "true", unjittered scene space, but that's
   // fine, because reconstruction doesn't need to move them there. It
   // needs two honest, matching things instead: the RAW sample (no
   // filtering) and the TRUE location that sample was actually taken at.
   // The latter is exactly what the sampleConfidence Gaussian below
   // computes, from this same uJitter. An earlier version of this shader
   // instead resampled tCurrent at a "jitter-cancelling" sub-pixel uv
-  // offset via bilinear texture() — geometrically reasonable-sounding,
+  // offset via bilinear texture(): geometrically reasonable-sounding,
   // but every such fetch is a bilinear blend of neighbouring texels, and
   // that blur gets deposited into history and compounds every frame it
   // accumulates, converging to a ~1px tent blur. That is precisely why
@@ -205,7 +205,7 @@ void main() {
   // 1. Upsample confidence (FSR2 ffx_fsr2_upsample.h): how close is this
   // output pixel's center to the TRUE location of the raw sample fetched
   // above? The raw texel at texelCoord was rendered at grid position
-  // texelCoord + 0.5, shifted by this frame's jitter — so its honest
+  // texelCoord + 0.5, shifted by this frame's jitter, so its honest
   // location is (texelCoord + 0.5 + uJitter), which is what this
   // distance measures against the output pixel's own (unjittered)
   // position. Render and output share the same normalized [0,1] frame,
@@ -213,7 +213,7 @@ void main() {
   // continuous render-pixel units.
   // -------------------------------------------------------------------
   vec2 renderPos = vUv * uRenderSize;
-  // texelCoord is exactly the texel currentColor was fetched from above —
+  // texelCoord is exactly the texel currentColor was fetched from above:
   // its true sample location must be derived from that SAME texel, not a
   // separately re-derived "nearest sample" search, or the raw color and
   // its confidence weight could end up describing two different samples.
@@ -235,7 +235,7 @@ void main() {
   // instead of inheriting background motion. Raw texelFetch, same
   // reasoning as the current-color fetch above (never resample depth
   // either). The resulting texel-center uv ignores this frame's
-  // sub-pixel jitter — a tolerable approximation for reprojection, since
+  // sub-pixel jitter: a tolerable approximation for reprojection, since
   // uCurrInvVP is itself the unjittered inverse view-projection and only
   // needs a same-pixel depth estimate, not a sub-pixel-exact one.
   // -------------------------------------------------------------------
@@ -273,15 +273,15 @@ void main() {
   // plain bilinear tap, so the history doesn't get progressively blurred
   // out by repeated resampling every frame. uHistoryFilter exposes the
   // plain-bilinear fetch too, since Catmull-Rom's sharper reconstruction
-  // can ring on some content — the tuning surface for that tradeoff.
+  // can ring on some content: the tuning surface for that tradeoff.
   //
-  // Static-exact fetch (anti-blur): ANY resampling filter — Catmull-Rom
-  // or bilinear — is a low-pass when the sample point doesn't land
+  // Static-exact fetch (anti-blur): ANY resampling filter (Catmull-Rom
+  // or bilinear) is a low-pass when the sample point doesn't land
   // exactly on a texel center, and it gets reapplied every single frame
   // history accumulates. On a static camera the reprojection keeps
   // landing at the same sub-texel offset, so that low-pass compounds
   // frame after frame and the image slowly blurs even though nothing is
-  // moving — the classic "sharpest while panning, soft when still" TAA
+  // moving: the classic "sharpest while panning, soft when still" TAA
   // symptom. When the reprojection delta is negligible (sub-1/20th of an
   // output pixel), skip the filtered fetch entirely and take a single
   // plain texture tap at vUv: with bilinear sampling exactly on a texel
@@ -303,7 +303,7 @@ void main() {
   // YCoCg neighbourhood around the *undilated* current sample, used to
   // build a variance-based clip box (mean +/- uVarianceGamma * stddev)
   // instead of a hard min/max clamp. Raw texelFetch, same reasoning as
-  // the current-color fetch above — a filtered read here would make the
+  // the current-color fetch above: a filtered read here would make the
   // clip box itself carry the same compounding blur.
   // -------------------------------------------------------------------
   vec3 moment1 = vec3(0.0);
@@ -325,7 +325,7 @@ void main() {
 
   // -------------------------------------------------------------------
   // 6. Clip the history sample into that box (line-to-box clip toward
-  // the neighbourhood mean, not a per-channel clamp — clamping crushes
+  // the neighbourhood mean, not a per-channel clamp: clamping crushes
   // saturated/detailed regions that clipping preserves).
   // -------------------------------------------------------------------
   vec3 clippedYCoCg = clipToAABB(aabbMin, aabbMax, historyYCoCg, neighbourhoodMean);
@@ -335,11 +335,11 @@ void main() {
   // 7. Disocclusion. There's no stored previous-frame depth in this v1
   // (see module doc), so true depth-based disocclusion isn't available;
   // instead reject via a soft luminance-change test between the current
-  // sample and the *clipped* history — a large relative Y jump means the
+  // sample and the *clipped* history: a large relative Y jump means the
   // clip box had to move the history a long way, i.e. this surface
   // wasn't actually visible last frame. uDepthDisocclusion doubles as
   // the sensitivity threshold for this fallback (documented deviation
-  // from a true depth-disocclusion test — see resolve.glsl.js docblock).
+  // from a true depth-disocclusion test: see resolve.glsl.js docblock).
   // -------------------------------------------------------------------
   float currentY = rgb2ycocg(currentColor).x;
   float clippedY = clippedYCoCg.x;
@@ -349,7 +349,7 @@ void main() {
   // changes), 1 lets it fire at full strength (fast response, more shimmer).
   float disocclusion = smoothstep(uDepthDisocclusion, uDepthDisocclusion * 10.0, relativeLumaChange) * uLumaRejection;
   // Off-screen reprojection is an unambiguous full disocclusion regardless
-  // of the luma-rejection dial — there is no history to speak of.
+  // of the luma-rejection dial: there is no history to speak of.
   disocclusion = offScreen ? 1.0 : disocclusion;
 
   // -------------------------------------------------------------------
@@ -383,12 +383,12 @@ void main() {
   float inverseDenom = max(1.0 - luma(blended), 1e-3);
   vec3 result = max(blended / inverseDenom, vec3(0.0));
 
-  // Diagnostic views replace the final colour outright — each isolates
+  // Diagnostic views replace the final colour outright: each isolates
   // one stage of the resolve so instability/blur can be attributed to a
   // specific step rather than guessed at from the final image.
   if (uDebugView == 1) {
     // Confidence: how much this output pixel trusts the current frame's
-    // jittered sample, before any history blending — bright = near a true
+    // jittered sample, before any history blending: bright = near a true
     // sample (sharp, fast-converging), dark = interpolated (softer).
     fragColor = vec4(vec3(sampleConfidence), 1.0);
     return;
@@ -396,7 +396,7 @@ void main() {
   if (uDebugView == 2) {
     // Clip amount: how far the variance clip had to move the history
     // sample in YCoCg space, as a red overlay on the dimmed current
-    // image — hotspots mark where rectification is fighting the history
+    // image: hotspots mark where rectification is fighting the history
     // hardest, i.e. where instability/ghosting is most likely.
     float clipAmount = length(historyYCoCg - clippedYCoCg) * 4.0;
     fragColor = vec4(currentColor * 0.3 + vec3(clipAmount, 0.0, 0.0), 1.0);
@@ -410,7 +410,7 @@ void main() {
   }
   if (uDebugView == 4) {
     // Motion: reprojection delta magnitude (history uv vs. this frame's
-    // uv), exaggerated x50 and shown in green — large values mark where
+    // uv), exaggerated x50 and shown in green: large values mark where
     // reprojection itself is likely wrong (bad motion, occlusion edges).
     float motion = length(prevUv - vUv) * 50.0;
     fragColor = vec4(0.0, motion, 0.0, 1.0);

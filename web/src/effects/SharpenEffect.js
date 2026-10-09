@@ -1,4 +1,4 @@
-// Final sharpen pass at render resolution — AMD FSR 1.0 RCAS (Robust
+// Final sharpen pass at render resolution: AMD FSR 1.0 RCAS (Robust
 // Contrast-Adaptive Sharpening), ported from the public FidelityFX FSR 1.0
 // reference (ffx_fsr1.h, MIT license).
 import { Effect } from 'postprocessing'

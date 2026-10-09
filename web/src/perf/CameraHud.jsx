@@ -1,4 +1,4 @@
-// Viewfinder readout — the sensor's current effective exposure state,
+// Viewfinder readout: the sensor's current effective exposure state,
 // published per frame by VisionPipeline on window.__renderCamera.
 import { useEffect, useState } from 'react'
 

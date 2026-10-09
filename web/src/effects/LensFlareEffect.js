@@ -1,4 +1,4 @@
-// Bright-pixel-driven internal-reflection lens flare — threshold-ghost approx.
+// Bright-pixel-driven internal-reflection lens flare: threshold-ghost approx.
 // of the classic Chapman flare chain (John Chapman, "Pseudo Lens Flare",
 // http://john-chapman-graphics.blogspot.com/2013/02/pseudo-lens-flare.html).
 // No light-position plumbing: ghosts/streak are derived from whatever bright
@@ -15,7 +15,7 @@ vec3 flareThreshold(vec3 c) {
   return max(c - vec3(uThreshold), vec3(0.0)) / max(1.0 - uThreshold, 0.0001);
 }
 
-// Off-frame taps must contribute nothing rather than a clamped edge sample —
+// Off-frame taps must contribute nothing rather than a clamped edge sample:
 // clamping would smear the border column/row into visible streaks.
 float uvValid(vec2 uv) {
   return step(0.001, uv.x) * step(uv.x, 0.999) * step(0.001, uv.y) * step(uv.y, 0.999);
