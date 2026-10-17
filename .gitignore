@@ -3,3 +3,8 @@ dist
 __pycache__
 *.pyc
 .venv
+
+# Secrets stay local: an .env never goes to a public repo.
+.env
+.env.*
+!.env.example
